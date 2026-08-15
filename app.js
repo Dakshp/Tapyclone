@@ -1006,7 +1006,8 @@ function renderSettings() {
   el('setBudget').value = s.monthlyBudgetMinor
     ? String(s.monthlyBudgetMinor / Store.MINOR_PER_MAJOR)
     : '';
-  el('quickUrl').textContent = `${location.origin}${location.pathname}?amount=AMOUNT`;
+  el('quickUrl').textContent =
+    `${location.origin}${location.pathname}?amount=AMOUNT&category=CATEGORY&note=NOTE&save=1`;
   renderCategoryManager();
 }
 
@@ -1049,38 +1050,57 @@ function downloadCsv() {
 }
 
 /**
- * Opens straight into the keypad from a URL such as
- * `?amount=250&category=food&note=Lunch`, which is what lets an iOS Shortcut
- * (Back Tap, Lock Screen, Siri) act like a native quick-add widget.
- * The entry is never saved automatically - it is prefilled and left one tap
- * from confirmation, so a stray link can't silently write to the log.
+ * Quick add from a URL such as
+ * `?amount=250&category=Food&note=Chai&save=1`, which is what lets an iOS
+ * Shortcut (Back Tap, Lock Screen, Siri) log without touching the app.
+ *
+ * With `save=1` the expense is written straight away and confirmed by name.
+ * Without it - or if anything about the request is ambiguous - the keypad
+ * opens prefilled instead, so nothing is ever guessed on the user's behalf.
  */
 function applyQuickAdd() {
   const params = new URLSearchParams(location.search);
   if (!params.has('amount') && !params.has('add')) return;
+
   const rawAmount = params.get('amount') || '';
   const rawCategory = (params.get('category') || '').trim().toLowerCase();
-  const note = params.get('note') || '';
+  const note = (params.get('note') || '').slice(0, 60);
+  const autoSave = params.get('save') === '1';
 
   // Drop the query immediately so reloading the app cannot replay the entry.
   history.replaceState(null, '', location.pathname);
 
-  openSheet(null);
   const minor = parseAmountToMinor(rawAmount);
+  const match = rawCategory
+    ? Store.getCategories().find((c) => c.id === rawCategory || c.label.toLowerCase() === rawCategory)
+    : null;
+  // A category that was asked for but not recognised must not fall back to
+  // some default - silently filing it under the wrong heading is worse than
+  // asking. That case drops through to the keypad.
+  const categoryIsClear = !rawCategory || Boolean(match);
+
+  if (autoSave && minor > 0 && categoryIsClear) {
+    const category = match ? match.id : state.category;
+    try {
+      Store.addExpense({ date: todayStr(), amountMinor: minor, category, note });
+      renderAll();
+      toast(`Saved ${formatMoney(minor, { compact: true })} · ${categoryMeta(category).label}`);
+      return;
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  openSheet(null);
   if (minor > 0) {
     state.amount = String(minor / Store.MINOR_PER_MAJOR);
     renderAmount();
   }
-  if (rawCategory) {
-    const match = Store.getCategories().find(
-      (c) => c.id === rawCategory || c.label.toLowerCase() === rawCategory
-    );
-    if (match) {
-      state.category = match.id;
-      renderChips();
-    }
+  if (match) {
+    state.category = match.id;
+    renderChips();
   }
-  if (note) el('noteInput').value = note.slice(0, 60);
+  if (note) el('noteInput').value = note;
 }
 
 function handleImport(file) {

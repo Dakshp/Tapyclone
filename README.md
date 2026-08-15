@@ -32,10 +32,14 @@ Once installed it works with no connection at all.
 - **Editable categories** — rename, re-icon, reorder and add your own in
   Settings. See "Retiring a category" below for why deletion is deliberately
   restricted.
-- **Quick add from a Shortcut** — opening `?amount=250&category=food&note=Chai`
-  launches straight into the keypad with the entry prefilled, so an iOS
-  Shortcut on Back Tap, the Lock Screen or Siri behaves like a native widget.
-  The entry is never saved automatically; it sits one tap from confirmation.
+- **Quick add from a Shortcut** — `?amount=250&category=Food&note=Chai&save=1`
+  logs the expense on arrival and confirms it by name, so an iOS Shortcut on
+  Back Tap, the Lock Screen or Siri can capture all three fields with nothing
+  to tap in the app. Drop `&save=1` to land on a prefilled keypad instead.
+  Auto-save refuses when anything is ambiguous — a zero amount, or a category
+  name it does not recognise — and falls back to the keypad rather than filing
+  the expense under a guess. The query string is stripped on arrival, so a
+  reload can never write the same expense twice.
 - **CSV export** alongside the JSON backup, for spreadsheets.
 - **Daily view** with per-day totals and full history; swipe back through
   earlier days with the arrows or jump to a date.

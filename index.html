@@ -140,20 +140,32 @@
       <div class="section-head"><h2>Categories</h2></div>
       <div class="card" id="categoryManager"></div>
 
-      <div class="section-head"><h2>Quick add</h2></div>
+      <div class="section-head"><h2>Quick add shortcut</h2></div>
       <div class="card">
         <p class="hint">
-          Tappy can open straight into the keypad with an amount already filled in, so logging
-          takes one tap from your Home Screen, Back&nbsp;Tap or Siri. Point an iOS Shortcut at
-          this address:
+          A shortcut can ask for the amount, category and note, then log the expense on its own —
+          Tappy flashes up, saves it and shows a confirmation, with nothing to tap.
         </p>
         <code class="quick-url" id="quickUrl"></code>
         <button class="btn-secondary" id="copyQuickUrl">Copy address</button>
         <p class="hint">
-          In the Shortcuts app: <strong>Ask for Input</strong> (Number) &rarr; <strong>Open URL</strong>,
-          putting the answer where <code>AMOUNT</code> is. You can also add
-          <code>&amp;category=food&amp;note=Lunch</code>. Assign that shortcut to Back&nbsp;Tap or
-          the Lock Screen in iOS Settings and it works exactly like a widget.
+          <strong>Build it in the Shortcuts app:</strong>
+        </p>
+        <ol class="hint steps">
+          <li><strong>Ask for Input</strong> — Number — “How much did you spend?”</li>
+          <li><strong>Choose from Menu</strong> — one item per category, named exactly as in
+            the list above (Food&nbsp;&amp;&nbsp;Drink, Groceries, …)</li>
+          <li><strong>Ask for Input</strong> — Text — “Note (optional)”</li>
+          <li><strong>Text</strong> — paste the address above, replacing
+            <code>AMOUNT</code>, <code>CATEGORY</code> and <code>NOTE</code> with those three
+            answers</li>
+          <li><strong>Open URLs</strong> — pass it that Text</li>
+        </ol>
+        <p class="hint">
+          Then in iOS&nbsp;Settings assign it to <strong>Back&nbsp;Tap</strong> or the
+          <strong>Lock&nbsp;Screen</strong>, or just say “Hey Siri, <em>shortcut name</em>”.
+          Drop <code>&amp;save=1</code> from the address if you would rather check the entry
+          before it is saved.
         </p>
       </div>
 
