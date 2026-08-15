@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover lets the layout paint under the iPhone notch/home bar;
+     the safe-area insets in style.css keep content clear of both. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#6366f1">
+<title>Tappy</title>
+
+<!-- iOS home-screen install metadata -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tappy">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ TODAY ============ -->
+  <section class="screen" id="screen-today">
+    <header class="app-header">
+      <button class="nav-arrow" id="prevDay" aria-label="Previous day">&#8249;</button>
+      <button class="date-title" id="dateTitle" aria-label="Pick a date">Today</button>
+      <button class="nav-arrow" id="nextDay" aria-label="Next day">&#8250;</button>
+      <input type="date" id="datePicker" aria-label="Choose date">
+    </header>
+
+    <div class="scroll-area">
+      <div class="hero-card">
+        <span class="hero-label">Spent this day</span>
+        <span class="hero-amount" id="dayTotal">0</span>
+        <div class="hero-budget">
+          <div class="budget-row">
+            <span id="monthLabel">This month</span>
+            <span id="monthSummary">0 of 0</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="monthProgress"></div></div>
+          <span class="budget-note" id="budgetNote"></span>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>Expenses</h2>
+        <span class="section-count" id="dayCount"></span>
+      </div>
+      <div id="dayList" class="expense-list"></div>
+    </div>
+
+    <button class="fab" id="openAdd" aria-label="Add expense">+</button>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="screen hidden" id="screen-stats">
+    <header class="app-header">
+      <button class="nav-arrow" id="prevMonth" aria-label="Previous month">&#8249;</button>
+      <span class="date-title" id="monthTitle">This month</span>
+      <button class="nav-arrow" id="nextMonth" aria-label="Next month">&#8250;</button>
+    </header>
+
+    <div class="scroll-area">
+      <div class="hero-card">
+        <span class="hero-label">Total spent</span>
+        <span class="hero-amount" id="statsTotal">0</span>
+        <span class="hero-sub" id="statsAverage"></span>
+      </div>
+
+      <div class="section-head"><h2>Last 7 days</h2></div>
+      <div class="card chart-card">
+        <svg id="trendSvg" viewBox="0 0 700 220" preserveAspectRatio="none" role="img" aria-label="Daily spending, last 7 days"></svg>
+      </div>
+
+      <div class="section-head"><h2>By category</h2></div>
+      <div id="categoryBreakdown" class="card"></div>
+
+      <div class="section-head"><h2>Recent days</h2></div>
+      <div id="recentDays" class="card"></div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="screen hidden" id="screen-settings">
+    <header class="app-header"><span class="date-title">Settings</span></header>
+
+    <div class="scroll-area">
+      <div class="section-head"><h2>Budget</h2></div>
+      <div class="card">
+        <label class="field">
+          <span>Currency</span>
+          <select id="setCurrency">
+            <option value="INR|en-IN">Rupee (INR)</option>
+            <option value="USD|en-US">Dollar (USD)</option>
+            <option value="EUR|en-IE">Euro (EUR)</option>
+            <option value="GBP|en-GB">Pound (GBP)</option>
+            <option value="AED|en-AE">Dirham (AED)</option>
+            <option value="JPY|ja-JP">Yen (JPY)</option>
+            <option value="AUD|en-AU">Aus Dollar (AUD)</option>
+            <option value="CAD|en-CA">Can Dollar (CAD)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Monthly budget</span>
+          <input type="text" id="setBudget" inputmode="decimal" placeholder="30000">
+        </label>
+        <p class="hint">Set 0 to hide budget progress.</p>
+      </div>
+
+      <div class="section-head"><h2>Your data</h2></div>
+      <div class="card">
+        <p class="hint">Everything is stored on this device only. Back up before switching phones or clearing your browser.</p>
+        <button class="btn-secondary" id="exportBtn">Download backup</button>
+        <button class="btn-secondary" id="importBtn">Restore backup</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button class="btn-danger" id="clearBtn">Erase everything</button>
+      </div>
+
+      <div class="section-head"><h2>About</h2></div>
+      <div class="card">
+        <p class="hint">Tappy is a fast daily expense tracker. It runs entirely offline and keeps your data private on your device.</p>
+        <p class="hint">On iPhone: open in Safari, tap Share, then <strong>Add to Home Screen</strong> to install it like a real app.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BOTTOM TABS ============ -->
+  <nav class="tabbar">
+    <button class="tab active" data-screen="today">
+      <span class="tab-icon">&#9679;</span><span>Today</span>
+    </button>
+    <button class="tab" data-screen="stats">
+      <span class="tab-icon">&#9646;</span><span>Stats</span>
+    </button>
+    <button class="tab" data-screen="settings">
+      <span class="tab-icon">&#9881;</span><span>Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ============ ADD / EDIT SHEET ============ -->
+<div class="sheet-backdrop hidden" id="sheetBackdrop">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Add expense">
+    <div class="sheet-grip"></div>
+
+    <div class="amount-display">
+      <span class="amount-currency" id="amountCurrency"></span>
+      <span class="amount-value" id="amountValue">0</span>
+    </div>
+
+    <div class="chip-row" id="categoryChips"></div>
+
+    <input type="text" id="noteInput" class="note-input" placeholder="Note (optional)" maxlength="60" autocomplete="off">
+
+    <div class="keypad" id="keypad">
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key=".">.</button><button data-key="0">0</button>
+      <button data-key="back" aria-label="Delete">&#9003;</button>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="sheetCancel">Cancel</button>
+      <button class="btn-ghost btn-delete hidden" id="sheetDelete">Delete</button>
+      <button class="btn-primary" id="sheetSave">Add expense</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="storage.js"></script>
+<script src="app.js"></script>
+<script>
+  // The service worker only makes sense over http(s); skip it on file://.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
