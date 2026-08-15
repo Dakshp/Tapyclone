@@ -55,31 +55,53 @@
     <button class="fab" id="openAdd" aria-label="Add expense">+</button>
   </section>
 
-  <!-- ============ STATS ============ -->
+  <!-- ============ COMPARE ============ -->
   <section class="screen hidden" id="screen-stats">
     <header class="app-header">
-      <button class="nav-arrow" id="prevMonth" aria-label="Previous month">&#8249;</button>
-      <span class="date-title" id="monthTitle">This month</span>
-      <button class="nav-arrow" id="nextMonth" aria-label="Next month">&#8250;</button>
+      <button class="nav-arrow" id="prevPeriod" aria-label="Earlier period">&#8249;</button>
+      <span class="date-title" id="periodTitle">Compare</span>
+      <button class="nav-arrow" id="nextPeriod" aria-label="Later period">&#8250;</button>
     </header>
 
     <div class="scroll-area">
+      <!-- One filter row, above everything it scopes. -->
+      <div class="filter-row">
+        <div class="segmented" id="granularityToggle" role="group" aria-label="Compare by">
+          <button type="button" data-gran="month" class="active">Monthly</button>
+          <button type="button" data-gran="year">Yearly</button>
+        </div>
+        <select id="focusCategory" aria-label="Focus one category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+
       <div class="hero-card">
-        <span class="hero-label">Total spent</span>
-        <span class="hero-amount" id="statsTotal">0</span>
-        <span class="hero-sub" id="statsAverage"></span>
+        <span class="hero-label" id="cmpLabel">Total spent</span>
+        <span class="hero-amount" id="cmpTotal">0</span>
+        <span class="delta-pill" id="cmpDelta"></span>
+        <span class="hero-sub" id="cmpSub"></span>
       </div>
 
-      <div class="section-head"><h2>Last 7 days</h2></div>
+      <div class="section-head">
+        <h2 id="seriesHead">Month by month</h2>
+        <button class="link-btn" id="tableToggle" aria-expanded="false">Show table</button>
+      </div>
       <div class="card chart-card">
-        <svg id="trendSvg" viewBox="0 0 700 220" preserveAspectRatio="none" role="img" aria-label="Daily spending, last 7 days"></svg>
+        <div class="chart-wrap">
+          <svg id="periodSvg" role="img" aria-label="Spending by period"></svg>
+          <div class="viz-tip hidden" id="periodTip" role="status" aria-live="polite"></div>
+        </div>
+        <p class="chart-note">Tap any bar to compare that period.</p>
       </div>
 
-      <div class="section-head"><h2>By category</h2></div>
-      <div id="categoryBreakdown" class="card"></div>
+      <div class="section-head">
+        <h2>Category change</h2>
+        <span class="viz-legend" id="cmpLegend"></span>
+      </div>
+      <div class="card" id="categoryCompare"></div>
 
-      <div class="section-head"><h2>Recent days</h2></div>
-      <div id="recentDays" class="card"></div>
+      <div class="section-head hidden" id="tableHead"><h2>All values</h2></div>
+      <div class="card table-card hidden" id="tableView"></div>
     </div>
   </section>
 

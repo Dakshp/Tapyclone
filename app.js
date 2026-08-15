@@ -1,6 +1,5 @@
 const state = {
   date: todayStr(),
-  month: todayStr().slice(0, 7),
   category: 'food',
   amount: '0',
   editingId: null,
@@ -24,12 +23,6 @@ function shiftDate(dateStr, days) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + days);
   return dt.toISOString().slice(0, 10);
-}
-
-function shiftMonth(monthStr, months) {
-  const [y, m] = monthStr.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1 + months, 1));
-  return dt.toISOString().slice(0, 7);
 }
 
 function daysInMonth(monthStr) {
@@ -194,105 +187,382 @@ function renderBudget() {
     (isCurrentMonth ? ` · ${formatMoney(Math.floor(left / daysLeft), { compact: true })}/day for ${daysLeft} more ${daysLeft === 1 ? 'day' : 'days'}` : '');
 }
 
-// ---------- Stats screen ----------
+// ---------- Compare dashboard ----------
 
-function renderStats() {
-  el('monthTitle').textContent = formatMonthTitle(state.month);
-  const data = Store.getMonth(state.month);
+const compare = {
+  granularity: 'month',
+  period: todayStr().slice(0, 7), // the highlighted bar
+  anchor: todayStr().slice(0, 7), // the period the visible window ends at
+  categoryId: null,
+  showTable: false,
+};
 
-  el('statsTotal').textContent = formatMoney(data.totalMinor, { compact: true });
-  el('statsAverage').textContent = data.daysWithSpending
-    ? `${formatMoney(Math.round(data.totalMinor / data.daysWithSpending), { compact: true })} on an average spending day · ${data.expenses.length} entries`
-    : 'No expenses this month';
+// How many periods of context sit behind the selected one.
+const SPAN = { month: 12, year: 6 };
 
-  renderTrend();
-  renderCategories(data);
-  renderRecentDays();
+function periodLabel(period, granularity, style = 'long') {
+  if (granularity === 'year') return period;
+  const [y, m] = period.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  if (style === 'initial') return d.toLocaleDateString(undefined, { month: 'narrow', timeZone: 'UTC' });
+  if (style === 'short') return d.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
+  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
-function renderTrend() {
-  const series = Store.getDailyTotals(7, state.date);
-  const svg = el('trendSvg');
-  const W = 700, H = 220;
-  const pad = { top: 14, bottom: 34, side: 14 };
-  const chartH = H - pad.top - pad.bottom;
-  const chartW = W - pad.side * 2;
-  const max = Math.max(...series.map((d) => d.totalMinor), 1);
-  const gap = 16;
-  const barW = (chartW - gap * (series.length - 1)) / series.length;
+// Direction is carried by a glyph AND a word, never by colour alone - for an
+// expense log "more" is the bad direction, so the tones are inverted from the
+// usual up-is-good reading.
+function deltaInfo(deltaMinor, hasPrevious) {
+  if (!hasPrevious) return { text: 'No earlier period', tone: 'flat' };
+  if (deltaMinor === 0) return { text: 'No change', tone: 'flat' };
+  const up = deltaMinor > 0;
+  return {
+    text: `${up ? '▲' : '▼'} ${formatMoney(Math.abs(deltaMinor), { compact: true })} ${up ? 'more' : 'less'}`,
+    tone: up ? 'up' : 'down',
+  };
+}
 
-  svg.innerHTML = series
-    .map((d, i) => {
+function syncComparePeriod() {
+  compare.period = compare.granularity === 'year' ? state.date.slice(0, 4) : state.date.slice(0, 7);
+  compare.anchor = compare.period;
+}
+
+// Period keys are fixed-width and zero-padded, so plain string ordering is
+// chronological ordering for both 'YYYY-MM' and 'YYYY'.
+function movePeriod(delta) {
+  const span = SPAN[compare.granularity];
+  compare.period = Store.shiftPeriod(compare.period, compare.granularity, delta);
+  const windowStart = Store.shiftPeriod(compare.anchor, compare.granularity, -(span - 1));
+  if (compare.period > compare.anchor) compare.anchor = compare.period;
+  else if (compare.period < windowStart) {
+    compare.anchor = Store.shiftPeriod(compare.period, compare.granularity, span - 1);
+  }
+  renderCompare();
+}
+
+function renderCompare() {
+  const data = Store.getComparison({
+    granularity: compare.granularity,
+    period: compare.period,
+    endPeriod: compare.anchor,
+    categoryId: compare.categoryId,
+    span: SPAN[compare.granularity],
+  });
+
+  el('periodTitle').textContent = periodLabel(data.period, data.granularity);
+  el('seriesHead').textContent = data.granularity === 'year' ? 'Year by year' : 'Month by month';
+
+  const focus = data.categoryId ? categoryMeta(data.categoryId) : null;
+  el('cmpLabel').textContent = focus ? `${focus.icon} ${focus.label}` : 'Total spent';
+  el('cmpTotal').textContent = formatMoney(data.currentTotal, { compact: true });
+
+  const d = deltaInfo(data.deltaMinor, data.hasPrevious);
+  const pill = el('cmpDelta');
+  pill.textContent = d.text;
+  pill.className = `delta-pill tone-${d.tone}`;
+
+  const entries = `${data.entryCount} ${data.entryCount === 1 ? 'entry' : 'entries'}`;
+  el('cmpSub').textContent = data.hasPrevious
+    ? `vs ${periodLabel(data.previousPeriod, data.granularity)} · ${entries}`
+    : entries;
+
+  renderPeriodChart(data);
+  renderCategoryCompare(data);
+  renderTableView(data);
+}
+
+// Top corners rounded, base square - the data-end is rounded, the baseline is not.
+function barPath(x, y, w, h, r) {
+  const rr = Math.max(Math.min(r, w / 2, h), 0);
+  return `M${x},${y + h} L${x},${y + rr} Q${x},${y} ${x + rr},${y} L${x + w - rr},${y} Q${x + w},${y} ${x + w},${y + rr} L${x + w},${y + h} Z`;
+}
+
+function renderPeriodChart(data) {
+  const svg = el('periodSvg');
+  const W = 700;
+  const H = 250;
+  // Top band leaves room for the selected bar's direct label; the bottom band
+  // holds the axis labels, so nothing is clipped by the container.
+  const pad = { top: 42, bottom: 38, side: 10 };
+  const plotH = H - pad.top - pad.bottom;
+  const plotW = W - pad.side * 2;
+  const n = data.series.length;
+  const max = Math.max(...data.series.map((s) => s.totalMinor), 1);
+  const gap = n > 8 ? 8 : 16;
+  const barW = (plotW - gap * (n - 1)) / n;
+  const baseY = pad.top + plotH;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const marks = data.series
+    .map((s, i) => {
       const x = pad.side + i * (barW + gap);
-      const h = d.totalMinor > 0 ? Math.max((d.totalMinor / max) * chartH, 4) : 0;
-      const y = pad.top + (chartH - h);
-      const [yy, mm, dd] = d.date.split('-').map(Number);
-      const label = new Date(Date.UTC(yy, mm - 1, dd)).toLocaleDateString(undefined, {
-        weekday: 'narrow',
-        timeZone: 'UTC',
-      });
-      const isSelected = d.date === state.date;
+      const h = s.totalMinor > 0 ? Math.max((s.totalMinor / max) * plotH, 3) : 0;
+      const y = baseY - h;
+      const selected = s.period === data.period;
+      const cx = x + barW / 2;
+      const label =
+        data.granularity === 'year'
+          ? s.period
+          : periodLabel(s.period, 'month', n > 8 ? 'initial' : 'short');
+      // The label lives in the reserved top band rather than riding the bar top,
+      // so it can never collide with a taller neighbour; x is clamped so it
+      // stays inside the plot at either end.
+      const labelX = Math.min(Math.max(cx, 52), W - 52);
+      const value = selected
+        ? `<text x="${labelX.toFixed(1)}" y="24" text-anchor="middle" font-size="18"
+                 font-weight="700" fill="var(--viz-ink)">${formatMoney(s.totalMinor, { compact: true })}</text>`
+        : '';
       return `
-        <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="6"
-              fill="${isSelected ? 'var(--primary)' : 'var(--line)'}"></rect>
-        <text x="${(x + barW / 2).toFixed(1)}" y="${H - 12}" text-anchor="middle" font-size="15"
-              fill="var(--muted)">${label}</text>
+        <path d="${barPath(x, y, barW, h, 4)}" fill="${selected ? 'var(--viz-current)' : 'var(--viz-context)'}"></path>
+        ${value}
+        <text x="${cx.toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="17"
+              fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
+              font-weight="${selected ? '650' : '400'}">${label}</text>
+        <rect class="hit" data-period="${s.period}" x="${x - gap / 2}" y="${pad.top}"
+              width="${barW + gap}" height="${plotH + pad.bottom}" fill="transparent"
+              tabindex="0" role="button"></rect>
       `;
     })
     .join('');
+
+  svg.innerHTML =
+    `<line x1="${pad.side}" y1="${baseY}" x2="${W - pad.side}" y2="${baseY}" stroke="var(--viz-axis)" stroke-width="1"/>` +
+    marks;
+
+  const byPeriod = {};
+  data.series.forEach((s) => (byPeriod[s.period] = s));
+
+  svg.querySelectorAll('.hit').forEach((hit) => {
+    const s = byPeriod[hit.dataset.period];
+    const cx = Number(hit.getAttribute('x')) + Number(hit.getAttribute('width')) / 2;
+    const show = () => showPeriodTip(s, data, cx / W);
+    hit.addEventListener('pointerenter', show);
+    hit.addEventListener('focus', show);
+    hit.addEventListener('pointerleave', hidePeriodTip);
+    hit.addEventListener('blur', hidePeriodTip);
+    const select = () => {
+      compare.period = s.period;
+      hidePeriodTip();
+      renderCompare();
+    };
+    hit.addEventListener('click', select);
+    hit.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        select();
+      }
+    });
+  });
 }
 
-function renderCategories(data) {
-  const box = el('categoryBreakdown');
+function showPeriodTip(s, data, fraction) {
+  const tip = el('periodTip');
+  tip.innerHTML = '';
+  // Value leads, label follows - the reader already knows which bar they are on.
+  const value = document.createElement('strong');
+  value.className = 'tip-value';
+  value.textContent = formatMoney(s.totalMinor);
+  const label = document.createElement('span');
+  label.className = 'tip-label';
+  label.textContent = periodLabel(s.period, data.granularity);
+  tip.append(value, label);
+  tip.style.left = `${Math.min(Math.max(fraction * 100, 16), 84)}%`;
+  tip.classList.remove('hidden');
+}
+
+function hidePeriodTip() {
+  el('periodTip').classList.add('hidden');
+}
+
+function renderCategoryCompare(data) {
+  const legend = el('cmpLegend');
+  legend.innerHTML = '';
+  const box = el('categoryCompare');
   box.innerHTML = '';
-  if (!data.byCategory.length) {
-    box.innerHTML = '<p class="empty-msg">No spending to break down yet.</p>';
+
+  if (!data.categories.length) {
+    box.innerHTML = '<p class="empty-msg">Nothing logged in this period.</p>';
     return;
   }
-  const max = data.byCategory[0].totalMinor || 1;
-  data.byCategory.forEach((c) => {
-    const share = Math.round((c.totalMinor / data.totalMinor) * 100);
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.innerHTML = `
-      <span class="row-icon">${c.icon}</span>
-      <span class="row-body">
-        <span class="row-title">${escapeHtml(c.label)}</span>
-        <span class="row-sub">${share}% · ${c.count} ${c.count === 1 ? 'entry' : 'entries'}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${(c.totalMinor / max) * 100}%"></span></span>
-      </span>
-      <span class="row-amount">${formatMoney(c.totalMinor, { compact: true })}</span>
-    `;
+
+  // Two series on the plot, so a legend is always present.
+  [
+    ['db-prev', periodLabel(data.previousPeriod, data.granularity, 'short')],
+    ['db-cur', periodLabel(data.period, data.granularity, 'short')],
+  ].forEach(([cls, text]) => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    const dot = document.createElement('span');
+    dot.className = `legend-dot ${cls}`;
+    const name = document.createElement('span');
+    name.textContent = text;
+    item.append(dot, name);
+    legend.appendChild(item);
+  });
+
+  const max = Math.max(...data.categories.flatMap((c) => [c.currentMinor, c.previousMinor]), 1);
+
+  data.categories.forEach((c) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'cmp-row';
+    if (data.categoryId === c.id) row.classList.add('focused');
+    else if (data.categoryId) row.classList.add('dimmed');
+    row.setAttribute('aria-pressed', String(data.categoryId === c.id));
+
+    const head = document.createElement('span');
+    head.className = 'cmp-head';
+    const icon = document.createElement('span');
+    icon.className = 'row-icon';
+    icon.textContent = c.icon;
+    const name = document.createElement('span');
+    name.className = 'cmp-name';
+    name.textContent = c.label;
+    const amount = document.createElement('span');
+    amount.className = 'row-amount';
+    amount.textContent = formatMoney(c.currentMinor, { compact: true });
+    head.append(icon, name, amount);
+
+    const pPct = (c.previousMinor / max) * 100;
+    const cPct = (c.currentMinor / max) * 100;
+    const track = document.createElement('span');
+    track.className = 'dumbbell';
+    const line = document.createElement('span');
+    line.className = 'db-line';
+    line.style.left = `${Math.min(pPct, cPct)}%`;
+    line.style.width = `${Math.abs(cPct - pPct)}%`;
+    const prevDot = document.createElement('span');
+    prevDot.className = 'db-dot db-prev';
+    prevDot.style.left = `${pPct}%`;
+    const curDot = document.createElement('span');
+    curDot.className = 'db-dot db-cur';
+    curDot.style.left = `${cPct}%`;
+    track.append(line, prevDot, curDot);
+
+    const foot = document.createElement('span');
+    foot.className = 'cmp-foot';
+    const di = deltaInfo(c.deltaMinor, data.hasPrevious);
+    const delta = document.createElement('span');
+    delta.className = `delta-text tone-${di.tone}`;
+    delta.textContent = di.text;
+    const was = document.createElement('span');
+    was.className = 'cmp-was';
+    was.textContent = `was ${formatMoney(c.previousMinor, { compact: true })}`;
+    foot.append(delta, was);
+
+    row.append(head, track, foot);
+    row.addEventListener('click', () => {
+      compare.categoryId = compare.categoryId === c.id ? null : c.id;
+      el('focusCategory').value = compare.categoryId || '';
+      renderCompare();
+    });
     box.appendChild(row);
   });
 }
 
-function renderRecentDays() {
-  const days = Store.getRecentDays(10);
-  const box = el('recentDays');
-  box.innerHTML = '';
-  if (!days.length) {
-    box.innerHTML = '<p class="empty-msg">No history yet.</p>';
-    return;
-  }
-  days.forEach((d) => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.style.cursor = 'pointer';
-    row.innerHTML = `
-      <span class="row-body">
-        <span class="row-title">${escapeHtml(formatDayTitle(d.date))}</span>
-        <span class="row-sub">${d.count} ${d.count === 1 ? 'entry' : 'entries'}</span>
-      </span>
-      <span class="row-amount">${formatMoney(d.totalMinor, { compact: true })}</span>
-    `;
-    row.addEventListener('click', () => {
-      state.date = d.date;
-      state.month = d.date.slice(0, 7);
-      showScreen('today');
-      renderAll();
+function buildTable(headers, rows) {
+  const table = document.createElement('table');
+  table.className = 'data-table';
+  const thead = document.createElement('thead');
+  const hr = document.createElement('tr');
+  headers.forEach((h, i) => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    if (i > 0) th.className = 'num';
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);
+  const tbody = document.createElement('tbody');
+  rows.forEach((cells) => {
+    const tr = document.createElement('tr');
+    cells.forEach((cell, i) => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      if (i > 0) td.className = 'num';
+      tr.appendChild(td);
     });
-    box.appendChild(row);
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  return table;
+}
+
+// The WCAG-clean twin of both charts: every plotted value readable as text.
+function renderTableView(data) {
+  el('tableHead').classList.toggle('hidden', !compare.showTable);
+  const box = el('tableView');
+  box.classList.toggle('hidden', !compare.showTable);
+  el('tableToggle').textContent = compare.showTable ? 'Hide table' : 'Show table';
+  el('tableToggle').setAttribute('aria-expanded', String(compare.showTable));
+  if (!compare.showTable) return;
+
+  box.innerHTML = '';
+  const periodCaption = document.createElement('p');
+  periodCaption.className = 'table-caption';
+  periodCaption.textContent = data.granularity === 'year' ? 'Year by year' : 'Month by month';
+  box.append(
+    periodCaption,
+    buildTable(
+      [data.granularity === 'year' ? 'Year' : 'Month', 'Spent'],
+      data.series.map((s) => [periodLabel(s.period, data.granularity), formatMoney(s.totalMinor)])
+    )
+  );
+
+  const catCaption = document.createElement('p');
+  catCaption.className = 'table-caption';
+  catCaption.textContent = `Categories · ${periodLabel(data.previousPeriod, data.granularity, 'short')} vs ${periodLabel(data.period, data.granularity, 'short')}`;
+  box.append(
+    catCaption,
+    buildTable(
+      ['Category', 'Before', 'Now', 'Change'],
+      data.categories.map((c) => [
+        c.label,
+        formatMoney(c.previousMinor),
+        formatMoney(c.currentMinor),
+        deltaInfo(c.deltaMinor, data.hasPrevious).text,
+      ])
+    )
+  );
+}
+
+function initCompareControls() {
+  const select = el('focusCategory');
+  Store.CATEGORIES.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.icon} ${c.label}`;
+    select.appendChild(opt);
+  });
+  select.addEventListener('change', () => {
+    compare.categoryId = select.value || null;
+    renderCompare();
+  });
+
+  el('granularityToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-gran]');
+    if (!btn || btn.dataset.gran === compare.granularity) return;
+    // Carry the selection across the switch instead of resetting to today.
+    compare.period =
+      btn.dataset.gran === 'year'
+        ? compare.period.slice(0, 4)
+        : compare.period === todayStr().slice(0, 4)
+          ? todayStr().slice(0, 7)
+          : `${compare.period}-12`;
+    compare.granularity = btn.dataset.gran;
+    compare.anchor = compare.period;
+    el('granularityToggle')
+      .querySelectorAll('button')
+      .forEach((b) => b.classList.toggle('active', b === btn));
+    renderCompare();
+  });
+
+  el('prevPeriod').addEventListener('click', () => movePeriod(-1));
+  el('nextPeriod').addEventListener('click', () => movePeriod(1));
+
+  el('tableToggle').addEventListener('click', () => {
+    compare.showTable = !compare.showTable;
+    renderCompare();
   });
 }
 
@@ -455,7 +725,7 @@ function clearEverything() {
   if (!window.confirm('Really erase everything? Download a backup first if you are unsure.')) return;
   Store.clearAll();
   state.date = todayStr();
-  state.month = state.date.slice(0, 7);
+  syncComparePeriod();
   renderAll();
   renderSettings();
   toast('All data erased');
@@ -467,13 +737,13 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   el(`screen-${name}`).classList.remove('hidden');
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.screen === name));
-  if (name === 'stats') renderStats();
+  if (name === 'stats') renderCompare();
   if (name === 'settings') renderSettings();
 }
 
 function renderAll() {
   renderToday();
-  if (!el('screen-stats').classList.contains('hidden')) renderStats();
+  if (!el('screen-stats').classList.contains('hidden')) renderCompare();
 }
 
 // ---------- Init ----------
@@ -485,29 +755,22 @@ function init() {
 
   el('prevDay').addEventListener('click', () => {
     state.date = shiftDate(state.date, -1);
-    state.month = state.date.slice(0, 7);
+    syncComparePeriod();
     renderAll();
   });
   el('nextDay').addEventListener('click', () => {
     state.date = shiftDate(state.date, 1);
-    state.month = state.date.slice(0, 7);
+    syncComparePeriod();
     renderAll();
   });
   el('datePicker').addEventListener('change', (e) => {
     if (!e.target.value) return;
     state.date = e.target.value;
-    state.month = state.date.slice(0, 7);
+    syncComparePeriod();
     renderAll();
   });
 
-  el('prevMonth').addEventListener('click', () => {
-    state.month = shiftMonth(state.month, -1);
-    renderStats();
-  });
-  el('nextMonth').addEventListener('click', () => {
-    state.month = shiftMonth(state.month, 1);
-    renderStats();
-  });
+  initCompareControls();
 
   el('openAdd').addEventListener('click', () => openSheet(null));
   el('sheetCancel').addEventListener('click', closeSheet);

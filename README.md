@@ -34,8 +34,12 @@ Once installed it works with no connection at all.
   earlier days with the arrows or jump to a date.
 - **Monthly budget** that tells you what is left *and* what that works out to
   per day for the rest of the month, so overspending shows up early.
-- **Stats** — a seven-day bar chart, a category breakdown with shares, and a
-  recent-days list you can tap to jump back to any day.
+- **Compare** — an interactive dashboard for reading one period against
+  another. Switch between **Monthly** and **Yearly**, tap any bar to compare
+  that period, and focus a single category to rescope the whole screen. Each
+  category gets a dumbbell showing where it sat last period and where it sits
+  now, so the direction of change is visible without reading a number.
+  Every plotted value is also available as a plain table.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
 
@@ -53,6 +57,12 @@ the amount, move it to another category, change the note, or delete it.
 - `app.js` — rendering and interaction. Calendar dates are read from local
   fields and stepped in UTC, which avoids the off-by-one-day bug that hits any
   timezone ahead of UTC.
+- **Chart colours** are a single-hue ordinal pair (previous → current), stepped
+  separately for the light and dark surfaces and checked against contrast and
+  colour-vision thresholds rather than picked by eye. Direction of change is
+  always carried by an arrow **and** a word, so it never depends on colour;
+  the selected period is shown by emphasis (one bar coloured, the rest grey)
+  instead of giving every bar its own hue.
 - `sw.js` — caches the app shell for offline use. **Bump `CACHE` whenever an
   app file changes**, otherwise installed copies keep serving the old version.
 - `icons/` — generated, not hand-drawn; see the icon script in the project

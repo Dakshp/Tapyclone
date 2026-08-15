@@ -183,8 +183,217 @@ button {
   overflow: hidden;
 }
 
-.chart-card { padding: 12px 8px 4px; }
-#trendSvg { width: 100%; height: 180px; display: block; }
+.chart-card { padding: 10px 8px 6px; }
+
+/* ---------- Visualization tokens ----------
+   Steps validated against the surfaces they actually render on (#ffffff light,
+   #17171f dark): the current/previous pair is a single-hue ordinal ramp, and the
+   dark column is re-stepped for the dark surface rather than flipped. Status
+   colours are reserved for deltas and always ship with a glyph AND a word, so
+   direction never rests on colour alone. */
+:root {
+  --viz-current: #4338ca;
+  --viz-previous: #818cf8;
+  --viz-context: #bcbccf;
+  --viz-axis: #d5d5de;
+  --viz-ink: #14141a;
+  --viz-muted: #71717f;
+  --viz-up: #d03b3b;   /* spending more */
+  --viz-down: #006300; /* spending less */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --viz-current: #a5b4fc;
+    --viz-previous: #4f46e5;
+    --viz-context: #474756;
+    --viz-axis: #3a3a46;
+    --viz-ink: #f2f2f6;
+    --viz-muted: #9a9aab;
+    --viz-up: #f08d8d;
+    --viz-down: #0ca30c;
+  }
+}
+
+.chart-wrap { position: relative; }
+
+#periodSvg {
+  display: block;
+  width: 100%;
+  height: auto; /* the viewBox carries the aspect, so the axis band is never clipped */
+}
+
+#periodSvg .hit { cursor: pointer; outline: none; }
+#periodSvg .hit:focus-visible { stroke: var(--viz-current); stroke-width: 2; }
+
+.viz-tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 10px;
+  padding: 7px 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+.tip-value { font-size: 14px; font-weight: 700; }
+.tip-label { font-size: 11px; opacity: .75; }
+
+.chart-note {
+  margin: 2px 0 4px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* ---------- Filter row (one row, above everything it scopes) ---------- */
+.filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.segmented {
+  display: flex;
+  background: var(--surface);
+  border-radius: 11px;
+  padding: 3px;
+  box-shadow: var(--shadow);
+  flex: none;
+}
+.segmented button {
+  padding: 8px 13px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.segmented button.active { background: var(--primary-soft); color: var(--primary); }
+
+#focusCategory {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.link-btn { font-size: 13px; font-weight: 600; color: var(--primary); padding: 2px 4px; }
+
+/* ---------- Delta indicators ---------- */
+.delta-pill {
+  margin-top: 10px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 650;
+}
+.tone-up { color: var(--viz-up); }
+.tone-down { color: var(--viz-down); }
+.tone-flat { color: var(--muted); }
+
+/* ---------- Legend ---------- */
+.viz-legend { display: flex; gap: 12px; align-items: center; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; display: block; }
+.legend-dot.db-prev { background: var(--viz-previous); }
+.legend-dot.db-cur { background: var(--viz-current); }
+
+/* ---------- Category comparison (dumbbell rows) ---------- */
+.cmp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row.dimmed { opacity: .45; }
+.cmp-row.focused { background: var(--primary-soft); }
+
+.cmp-head { display: flex; align-items: center; gap: 11px; }
+.cmp-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; }
+
+.dumbbell {
+  position: relative;
+  display: block;
+  height: 11px;
+  margin: 0 7px;
+}
+/* Track baseline */
+.dumbbell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+.db-line {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--viz-previous);
+  border-radius: 2px;
+}
+.db-dot {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  /* 2px surface ring so the two dots stay distinct when they overlap */
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.cmp-row.focused .db-dot { box-shadow: 0 0 0 2px var(--primary-soft); }
+.db-dot.db-prev { background: var(--viz-previous); }
+.db-dot.db-cur { background: var(--viz-current); z-index: 2; }
+
+.cmp-foot { display: flex; align-items: baseline; gap: 8px; }
+.delta-text { font-size: 12.5px; font-weight: 650; }
+.cmp-was { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+/* ---------- Table view ---------- */
+.table-card { padding: 4px 0 12px; }
+.table-caption {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+  padding: 14px 14px 8px;
+  margin: 0;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th,
+.data-table td {
+  padding: 8px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.data-table th { font-size: 11.5px; font-weight: 650; color: var(--muted); }
+.data-table td.num,
+.data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table tr:last-child td { border-bottom: none; }
 
 .section-head {
   display: flex;

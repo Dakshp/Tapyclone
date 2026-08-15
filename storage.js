@@ -175,6 +175,95 @@ const Store = (() => {
       .slice(0, limit);
   }
 
+  // ---------- Comparison analytics ----------
+
+  // A "period" is a plain string key: 'YYYY-MM' for months, 'YYYY' for years.
+  function periodOf(dateStr, granularity) {
+    return granularity === 'year' ? dateStr.slice(0, 4) : dateStr.slice(0, 7);
+  }
+
+  function shiftPeriod(period, granularity, delta) {
+    if (granularity === 'year') return String(Number(period) + delta);
+    const [y, m] = period.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+  }
+
+  // One pass over the log builds every total the comparison screen needs,
+  // rather than re-filtering the list once per period and per category.
+  function buildIndex(expenses, granularity) {
+    const idx = {};
+    for (const e of expenses) {
+      const p = periodOf(e.date, granularity);
+      if (!idx[p]) idx[p] = { total: 0, count: 0, byCat: {} };
+      idx[p].total += e.amountMinor;
+      idx[p].count += 1;
+      idx[p].byCat[e.category] = (idx[p].byCat[e.category] || 0) + e.amountMinor;
+    }
+    return idx;
+  }
+
+  function listPeriods(granularity) {
+    const idx = buildIndex(load().expenses, granularity);
+    return Object.keys(idx).sort();
+  }
+
+  /**
+   * Everything the compare dashboard renders, for one selected period.
+   *
+   * categoryId scopes the headline and the period series (the "focus"), but the
+   * category rows always cover every category so the focused one keeps its peer
+   * context - the highlighted row's value is exactly the headline value, so the
+   * two never disagree.
+   */
+  function getComparison({ granularity = 'month', period, endPeriod, categoryId = null, span = 12 }) {
+    const expenses = load().expenses;
+    const idx = buildIndex(expenses, granularity);
+
+    const valueAt = (p) => {
+      const bucket = idx[p];
+      if (!bucket) return 0;
+      return categoryId ? bucket.byCat[categoryId] || 0 : bucket.total;
+    };
+
+    // The window is anchored independently of the selection, so picking a bar
+    // highlights it in place instead of sliding it to the right-hand edge.
+    const windowEnd = endPeriod || period;
+    const periods = [];
+    for (let i = span - 1; i >= 0; i--) periods.push(shiftPeriod(windowEnd, granularity, -i));
+    const series = periods.map((p) => ({ period: p, totalMinor: valueAt(p) }));
+
+    const previous = shiftPeriod(period, granularity, -1);
+    const currentTotal = valueAt(period);
+    const previousTotal = valueAt(previous);
+
+    const curBucket = idx[period] || { byCat: {}, count: 0 };
+    const prevBucket = idx[previous] || { byCat: {}, count: 0 };
+
+    const categories = CATEGORIES.map((c) => {
+      const cur = curBucket.byCat[c.id] || 0;
+      const prev = prevBucket.byCat[c.id] || 0;
+      return { ...c, currentMinor: cur, previousMinor: prev, deltaMinor: cur - prev };
+    })
+      .filter((c) => c.currentMinor > 0 || c.previousMinor > 0)
+      .sort((a, b) => b.currentMinor - a.currentMinor || b.previousMinor - a.previousMinor);
+
+    return {
+      granularity,
+      period,
+      previousPeriod: previous,
+      categoryId,
+      series,
+      currentTotal,
+      previousTotal,
+      deltaMinor: currentTotal - previousTotal,
+      entryCount: categoryId
+        ? expenses.filter((e) => e.category === categoryId && periodOf(e.date, granularity) === period).length
+        : curBucket.count,
+      categories,
+      hasPrevious: Boolean(idx[previous]),
+    };
+  }
+
   // ---------- Settings ----------
 
   function normalizeSettings(s) {
@@ -240,6 +329,10 @@ const Store = (() => {
     getMonth,
     getDailyTotals,
     getRecentDays,
+    periodOf,
+    shiftPeriod,
+    listPeriods,
+    getComparison,
     getSettings,
     setSettings,
     exportData,
