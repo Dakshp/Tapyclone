@@ -29,7 +29,14 @@ Once installed it works with no connection at all.
 
 - **Three-tap logging** — a big on-screen keypad, category chips, and an
   optional note. No system keyboard needed for the amount.
-- **Ten categories** with icons, from food and transport to rent and health.
+- **Editable categories** — rename, re-icon, reorder and add your own in
+  Settings. See "Retiring a category" below for why deletion is deliberately
+  restricted.
+- **Quick add from a Shortcut** — opening `?amount=250&category=food&note=Chai`
+  launches straight into the keypad with the entry prefilled, so an iOS
+  Shortcut on Back Tap, the Lock Screen or Siri behaves like a native widget.
+  The entry is never saved automatically; it sits one tap from confirmation.
+- **CSV export** alongside the JSON backup, for spreadsheets.
 - **Daily view** with per-day totals and full history; swipe back through
   earlier days with the arrows or jump to a date.
 - **Monthly budget** that tells you what is left *and* what that works out to
@@ -42,6 +49,29 @@ Once installed it works with no connection at all.
   Every plotted value is also available as a plain table.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
+
+## Retiring a category
+
+Every expense stores a category **id**, and that id is permanent. Renaming a
+category therefore changes only its label — all past expenses follow the new
+name automatically, and nothing in the history moves.
+
+Deleting is the dangerous direction. If a category with expenses simply
+disappeared, those expenses would point at something that no longer exists:
+they would drop out of the category breakdown while still counting toward the
+total, so the rows would stop adding up to the headline — a quietly wrong
+chart. The app closes that path:
+
+- A category **no expense has ever used** can be deleted outright.
+- A category **with expenses** cannot. Instead you can **hide** it (it leaves
+  the logging picker but keeps every past expense exactly where it is) or
+  **merge** it into another category (its expenses are reassigned first, then
+  it is removed).
+
+Either way no expense is ever orphaned, and the per-category figures always
+reconcile with the total. As a backstop, if a backup from another device
+references a category this one has never heard of, that id is still shown in
+the breakdown rather than silently dropped.
 
 ## Editing an expense
 

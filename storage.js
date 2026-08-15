@@ -8,7 +8,10 @@ const Store = (() => {
   // as month totals that drift by a paisa or two once there are enough entries.
   const MINOR_PER_MAJOR = 100;
 
-  const CATEGORIES = [
+  // Seed list only. Categories live in stored data from first run, so they can
+  // be renamed, reordered and added to. A category's `id` is permanent - every
+  // expense points at it forever, so renaming changes only the label.
+  const DEFAULT_CATEGORIES = [
     { id: 'food', label: 'Food & Drink', icon: '\u{1F354}' },
     { id: 'groceries', label: 'Groceries', icon: '\u{1F6D2}' },
     { id: 'transport', label: 'Transport', icon: '\u{1F695}' },
@@ -21,6 +24,8 @@ const Store = (() => {
     { id: 'other', label: 'Other', icon: '\u{2728}' },
   ];
 
+  const ORPHAN_ICON = '\u{2753}';
+
   const DEFAULT_SETTINGS = {
     currency: 'INR',
     locale: 'en-IN',
@@ -28,7 +33,21 @@ const Store = (() => {
   };
 
   function freshData() {
-    return { expenses: [], nextId: 1, settings: { ...DEFAULT_SETTINGS } };
+    return {
+      expenses: [],
+      nextId: 1,
+      categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
+      settings: { ...DEFAULT_SETTINGS },
+    };
+  }
+
+  function normalizeCategory(c) {
+    return {
+      id: String(c.id == null ? '' : c.id).trim(),
+      label: String(c.label == null ? '' : c.label).trim().slice(0, 30) || 'Untitled',
+      icon: String(c.icon == null ? '' : c.icon).trim().slice(0, 4) || '\u{2728}',
+      hidden: Boolean(c.hidden),
+    };
   }
 
   function toMinor(value) {
@@ -49,7 +68,10 @@ const Store = (() => {
       id: Number(e.id) || 0,
       date: typeof e.date === 'string' ? e.date : '',
       amountMinor: Math.max(0, amountMinor),
-      category: CATEGORIES.some((c) => c.id === e.category) ? e.category : 'other',
+      // The id is kept verbatim even if no such category exists right now -
+      // silently rewriting it to 'other' would rewrite the user's history.
+      // getCategoriesForDisplay() surfaces any such orphan instead.
+      category: typeof e.category === 'string' && e.category.trim() ? e.category.trim() : 'other',
       note: typeof e.note === 'string' ? e.note : '',
       createdAt: typeof e.createdAt === 'string' ? e.createdAt : '',
     };
@@ -61,9 +83,11 @@ const Store = (() => {
       if (!raw) return freshData();
       const data = JSON.parse(raw);
       const list = Array.isArray(data.expenses) ? data.expenses : [];
+      const cats = Array.isArray(data.categories) ? data.categories.map(normalizeCategory).filter((c) => c.id) : [];
       return {
         expenses: list.map(normalizeExpense).filter((e) => e.id && e.date),
         nextId: Number(data.nextId) || list.length + 1,
+        categories: cats.length ? cats : DEFAULT_CATEGORIES.map((c) => ({ ...c })),
         settings: normalizeSettings({ ...DEFAULT_SETTINGS, ...(data.settings || {}) }),
       };
     } catch (err) {
@@ -128,7 +152,7 @@ const Store = (() => {
   // month is a 'YYYY-MM' prefix.
   function getMonth(month) {
     const expenses = load().expenses.filter((e) => e.date.slice(0, 7) === month);
-    const byCategory = CATEGORIES.map((c) => {
+    const byCategory = getCategoriesForDisplay().map((c) => {
       const items = expenses.filter((e) => e.category === c.id);
       return { ...c, totalMinor: sumMinor(items), count: items.length };
     })
@@ -173,6 +197,106 @@ const Store = (() => {
     return Object.values(byDate)
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .slice(0, limit);
+  }
+
+  // ---------- Categories ----------
+
+  // Hidden categories stay out of the logging picker but remain in history.
+  function getCategories({ includeHidden = false } = {}) {
+    const list = load().categories;
+    return includeHidden ? list : list.filter((c) => !c.hidden);
+  }
+
+  /**
+   * The list the charts and breakdowns iterate. Any category id referenced by
+   * an expense but absent from the stored list (a backup from a device with a
+   * different set, say) is appended as an orphan rather than dropped, so
+   * per-category figures always reconcile with the headline total.
+   */
+  function getCategoriesForDisplay() {
+    const data = load();
+    const out = data.categories.slice();
+    const seen = new Set(out.map((c) => c.id));
+    for (const e of data.expenses) {
+      if (!seen.has(e.category)) {
+        seen.add(e.category);
+        out.push({ id: e.category, label: e.category, icon: ORPHAN_ICON, hidden: true, orphan: true });
+      }
+    }
+    return out;
+  }
+
+  function categoryUsage(id) {
+    return load().expenses.filter((e) => e.category === id).length;
+  }
+
+  function slugify(label) {
+    return (
+      String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'category'
+    );
+  }
+
+  function addCategory({ label, icon }) {
+    const data = load();
+    const clean = normalizeCategory({ id: slugify(label), label, icon });
+    if (!String(label || '').trim()) throw new Error('Give the category a name.');
+    // Ids must be unique and are never reused, since expenses point at them.
+    const taken = new Set(data.categories.map((c) => c.id));
+    let id = clean.id;
+    for (let n = 2; taken.has(id); n++) id = `${clean.id}-${n}`;
+    const record = { ...clean, id };
+    data.categories.push(record);
+    save(data);
+    return record;
+  }
+
+  // Label and icon are editable; the id deliberately is not.
+  function updateCategory(id, patch) {
+    const data = load();
+    const i = data.categories.findIndex((c) => c.id === id);
+    if (i === -1) return null;
+    data.categories[i] = normalizeCategory({ ...data.categories[i], ...patch, id });
+    save(data);
+    return data.categories[i];
+  }
+
+  function moveCategory(id, delta) {
+    const data = load();
+    const i = data.categories.findIndex((c) => c.id === id);
+    const j = i + delta;
+    if (i === -1 || j < 0 || j >= data.categories.length) return false;
+    const [item] = data.categories.splice(i, 1);
+    data.categories.splice(j, 0, item);
+    save(data);
+    return true;
+  }
+
+  // Only ever removes a category no expense refers to, so nothing is orphaned.
+  function removeCategory(id) {
+    const data = load();
+    if (data.categories.length <= 1) throw new Error('Keep at least one category.');
+    if (data.expenses.some((e) => e.category === id)) {
+      throw new Error('This category has expenses. Hide it, or merge it into another one.');
+    }
+    data.categories = data.categories.filter((c) => c.id !== id);
+    save(data);
+  }
+
+  // The safe way to retire a used category: move its expenses, then drop it.
+  function mergeCategory(fromId, intoId) {
+    const data = load();
+    if (fromId === intoId) throw new Error('Pick a different category to merge into.');
+    if (!data.categories.some((c) => c.id === intoId)) throw new Error('Unknown target category.');
+    let moved = 0;
+    data.expenses = data.expenses.map((e) => {
+      if (e.category !== fromId) return e;
+      moved += 1;
+      return { ...e, category: intoId };
+    });
+    data.categories = data.categories.filter((c) => c.id !== fromId);
+    if (!data.categories.length) throw new Error('Keep at least one category.');
+    save(data);
+    return { moved };
   }
 
   // ---------- Comparison analytics ----------
@@ -239,7 +363,7 @@ const Store = (() => {
     const curBucket = idx[period] || { byCat: {}, count: 0 };
     const prevBucket = idx[previous] || { byCat: {}, count: 0 };
 
-    const categories = CATEGORIES.map((c) => {
+    const categories = getCategoriesForDisplay().map((c) => {
       const cur = curBucket.byCat[c.id] || 0;
       const prev = prevBucket.byCat[c.id] || 0;
       return { ...c, currentMinor: cur, previousMinor: prev, deltaMinor: cur - prev };
@@ -296,8 +420,33 @@ const Store = (() => {
       exportedAt: new Date().toISOString(),
       expenses: data.expenses,
       nextId: data.nextId,
+      categories: data.categories,
       settings: data.settings,
     };
+  }
+
+  // Spreadsheet-friendly export. Amounts go out as plain decimals, and every
+  // field is quoted with embedded quotes doubled, so notes containing commas,
+  // quotes or newlines survive the round trip.
+  function exportCsv() {
+    const data = load();
+    const labels = {};
+    getCategoriesForDisplay().forEach((c) => (labels[c.id] = c.label));
+    const cell = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const rows = [['Date', 'Category', 'Note', 'Amount', 'Currency']];
+    data.expenses
+      .slice()
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))
+      .forEach((e) => {
+        rows.push([
+          e.date,
+          labels[e.category] || e.category,
+          e.note,
+          (e.amountMinor / MINOR_PER_MAJOR).toFixed(2),
+          data.settings.currency,
+        ]);
+      });
+    return rows.map((r) => r.map(cell).join(',')).join('\r\n');
   }
 
   function importData(parsed) {
@@ -308,6 +457,9 @@ const Store = (() => {
     data.expenses = parsed.expenses.map(normalizeExpense).filter((e) => e.id && e.date);
     data.nextId =
       Number(parsed.nextId) || Math.max(0, ...data.expenses.map((e) => e.id)) + 1;
+    if (Array.isArray(parsed.categories) && parsed.categories.length) {
+      data.categories = parsed.categories.map(normalizeCategory).filter((c) => c.id);
+    }
     if (parsed.settings) data.settings = normalizeSettings({ ...data.settings, ...parsed.settings });
     save(data);
     return { expenses: data.expenses.length };
@@ -318,8 +470,16 @@ const Store = (() => {
   }
 
   return {
-    CATEGORIES,
     MINOR_PER_MAJOR,
+    getCategories,
+    getCategoriesForDisplay,
+    categoryUsage,
+    addCategory,
+    updateCategory,
+    moveCategory,
+    removeCategory,
+    mergeCategory,
+    exportCsv,
     toMinor,
     addExpense,
     updateExpense,

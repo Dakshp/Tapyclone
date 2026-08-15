@@ -1,6 +1,6 @@
 // App-shell cache so Tappy opens instantly and works with no connection.
 // Bump CACHE whenever app files change - the old cache is then dropped.
-const CACHE = 'tappy-v2';
+const CACHE = 'tappy-v3';
 const SHELL = [
   './',
   './index.html',

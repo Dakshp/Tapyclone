@@ -688,6 +688,97 @@ button {
 .btn-danger { color: var(--danger); }
 .btn-secondary:active, .btn-danger:active { opacity: .7; }
 
+/* ---------- Category management ---------- */
+.cat-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.cat-row:last-of-type { border-bottom: none; }
+
+.cat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 4px 11px 14px;
+  text-align: left;
+}
+.cat-main:active { opacity: .6; }
+
+.cat-moves { display: flex; gap: 2px; padding-right: 10px; }
+.cat-move {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.cat-move:disabled { opacity: .3; }
+.cat-move:active:not(:disabled) { background: var(--primary-soft); color: var(--primary); }
+
+.cat-add {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--primary);
+  border-top: 1px solid var(--line);
+}
+
+.sheet-title { margin: 0 0 14px; font-size: 17px; font-weight: 700; text-align: center; }
+
+.cat-fields { display: flex; gap: 10px; align-items: flex-start; }
+.cat-icon-input {
+  width: 64px;
+  flex: none;
+  padding: 13px 0;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 22px;
+  text-align: center;
+}
+.cat-fields .note-input { flex: 1; margin-bottom: 0; }
+.cat-icon-input:focus, .cat-fields .note-input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+#catHiddenField { margin-top: 6px; border-bottom: none; }
+#catHiddenField input { width: 20px; height: 20px; accent-color: var(--primary); }
+
+.merge-box { border-top: 1px solid var(--line); padding-top: 6px; }
+.merge-select {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px 10px;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 15px;
+}
+
+.quick-url {
+  display: block;
+  margin: 0 14px 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--primary);
+}
+.hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  background: var(--bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;

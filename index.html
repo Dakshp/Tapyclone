@@ -132,10 +132,31 @@
         <p class="hint">Set 0 to hide budget progress.</p>
       </div>
 
+      <div class="section-head"><h2>Categories</h2></div>
+      <div class="card" id="categoryManager"></div>
+
+      <div class="section-head"><h2>Quick add</h2></div>
+      <div class="card">
+        <p class="hint">
+          Tappy can open straight into the keypad with an amount already filled in, so logging
+          takes one tap from your Home Screen, Back&nbsp;Tap or Siri. Point an iOS Shortcut at
+          this address:
+        </p>
+        <code class="quick-url" id="quickUrl"></code>
+        <button class="btn-secondary" id="copyQuickUrl">Copy address</button>
+        <p class="hint">
+          In the Shortcuts app: <strong>Ask for Input</strong> (Number) &rarr; <strong>Open URL</strong>,
+          putting the answer where <code>AMOUNT</code> is. You can also add
+          <code>&amp;category=food&amp;note=Lunch</code>. Assign that shortcut to Back&nbsp;Tap or
+          the Lock Screen in iOS Settings and it works exactly like a widget.
+        </p>
+      </div>
+
       <div class="section-head"><h2>Your data</h2></div>
       <div class="card">
         <p class="hint">Everything is stored on this device only. Back up before switching phones or clearing your browser.</p>
-        <button class="btn-secondary" id="exportBtn">Download backup</button>
+        <button class="btn-secondary" id="exportBtn">Download backup (JSON)</button>
+        <button class="btn-secondary" id="exportCsvBtn">Export to CSV</button>
         <button class="btn-secondary" id="importBtn">Restore backup</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
         <button class="btn-danger" id="clearBtn">Erase everything</button>
@@ -189,6 +210,32 @@
       <button class="btn-ghost" id="sheetCancel">Cancel</button>
       <button class="btn-ghost btn-delete hidden" id="sheetDelete">Delete</button>
       <button class="btn-primary" id="sheetSave">Add expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CATEGORY EDITOR ============ -->
+<div class="sheet-backdrop hidden" id="catBackdrop">
+  <div class="sheet" id="catSheet" role="dialog" aria-modal="true" aria-labelledby="catTitle">
+    <div class="sheet-grip"></div>
+    <h3 class="sheet-title" id="catTitle">Edit category</h3>
+
+    <div class="cat-fields">
+      <input id="catIcon" class="cat-icon-input" maxlength="4" aria-label="Category icon" inputmode="text">
+      <input id="catName" class="note-input" placeholder="Category name" maxlength="30" autocomplete="off">
+    </div>
+
+    <label class="field" id="catHiddenField">
+      <span>Hide from the picker</span>
+      <input type="checkbox" id="catHidden">
+    </label>
+    <p class="hint" id="catUsage"></p>
+
+    <div id="catDanger"></div>
+
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="catCancel">Cancel</button>
+      <button class="btn-primary" id="catSave">Save</button>
     </div>
   </div>
 </div>

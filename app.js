@@ -101,7 +101,9 @@ function formatTime(iso) {
 }
 
 function categoryMeta(id) {
-  return Store.CATEGORIES.find((c) => c.id === id) || Store.CATEGORIES[Store.CATEGORIES.length - 1];
+  return (
+    Store.getCategoriesForDisplay().find((c) => c.id === id) || { id, label: id, icon: '❓' }
+  );
 }
 
 function toast(message) {
@@ -241,6 +243,7 @@ function movePeriod(delta) {
 }
 
 function renderCompare() {
+  populateFocusSelect();
   const data = Store.getComparison({
     granularity: compare.granularity,
     period: compare.period,
@@ -526,14 +529,31 @@ function renderTableView(data) {
   );
 }
 
-function initCompareControls() {
+// Rebuilt on every render so categories added or retired in Settings show up
+// here without a reload; the current focus survives unless it no longer exists.
+function populateFocusSelect() {
   const select = el('focusCategory');
-  Store.CATEGORIES.forEach((c) => {
+  const wanted = compare.categoryId || '';
+  select.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'All categories';
+  select.appendChild(all);
+  Store.getCategoriesForDisplay().forEach((c) => {
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = `${c.icon} ${c.label}`;
     select.appendChild(opt);
   });
+  select.value = wanted;
+  if (select.value !== wanted) {
+    compare.categoryId = null;
+    select.value = '';
+  }
+}
+
+function initCompareControls() {
+  const select = el('focusCategory');
   select.addEventListener('change', () => {
     compare.categoryId = select.value || null;
     renderCompare();
@@ -571,7 +591,12 @@ function initCompareControls() {
 function renderChips() {
   const row = el('categoryChips');
   row.innerHTML = '';
-  Store.CATEGORIES.forEach((c) => {
+  const visible = Store.getCategories();
+  // The remembered category may have been hidden or merged away since last use.
+  if (!visible.some((c) => c.id === state.category)) {
+    state.category = visible.length ? visible[0].id : 'other';
+  }
+  visible.forEach((c) => {
     const chip = document.createElement('button');
     chip.className = 'chip' + (c.id === state.category ? ' active' : '');
     chip.innerHTML = `<span>${c.icon}</span><span>${escapeHtml(c.label)}</span>`;
@@ -664,6 +689,191 @@ function deleteFromSheet() {
   toast('Expense deleted');
 }
 
+// ---------- Category management ----------
+
+let editingCategory = null; // null while adding
+
+function renderCategoryManager() {
+  const box = el('categoryManager');
+  box.innerHTML = '';
+  const cats = Store.getCategories({ includeHidden: true });
+
+  cats.forEach((c, i) => {
+    const used = Store.categoryUsage(c.id);
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+
+    const main = document.createElement('button');
+    main.type = 'button';
+    main.className = 'cat-main';
+    const icon = document.createElement('span');
+    icon.className = 'row-icon';
+    icon.textContent = c.icon;
+    const text = document.createElement('span');
+    text.className = 'row-body';
+    const name = document.createElement('span');
+    name.className = 'row-title';
+    name.textContent = c.label;
+    const meta = document.createElement('span');
+    meta.className = 'row-sub';
+    meta.textContent =
+      [used ? `${used} ${used === 1 ? 'expense' : 'expenses'}` : 'Unused', c.hidden ? 'Hidden' : '']
+        .filter(Boolean)
+        .join(' · ');
+    text.append(name, meta);
+    main.append(icon, text);
+    main.addEventListener('click', () => openCategoryEditor(c));
+
+    const moves = document.createElement('span');
+    moves.className = 'cat-moves';
+    [['▲', -1, i === 0], ['▼', 1, i === cats.length - 1]].forEach(([glyph, delta, disabled]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cat-move';
+      btn.textContent = glyph;
+      btn.disabled = disabled;
+      btn.setAttribute('aria-label', delta < 0 ? `Move ${c.label} up` : `Move ${c.label} down`);
+      btn.addEventListener('click', () => {
+        Store.moveCategory(c.id, delta);
+        renderCategoryManager();
+        renderChips();
+      });
+      moves.appendChild(btn);
+    });
+
+    row.append(main, moves);
+    box.appendChild(row);
+  });
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'cat-add';
+  add.textContent = '+ Add category';
+  add.addEventListener('click', () => openCategoryEditor(null));
+  box.appendChild(add);
+}
+
+function openCategoryEditor(category) {
+  editingCategory = category;
+  const adding = !category;
+  el('catTitle').textContent = adding ? 'New category' : 'Edit category';
+  el('catIcon').value = adding ? '🏷️' : category.icon;
+  el('catName').value = adding ? '' : category.label;
+  el('catSave').textContent = adding ? 'Add category' : 'Save';
+
+  const used = adding ? 0 : Store.categoryUsage(category.id);
+  el('catHiddenField').classList.toggle('hidden', adding);
+  el('catHidden').checked = adding ? false : Boolean(category.hidden);
+  el('catUsage').textContent = adding
+    ? 'The name and icon can be changed later at any time.'
+    : used
+      ? `Used by ${used} ${used === 1 ? 'expense' : 'expenses'}. Renaming is safe — past expenses follow the new name.`
+      : 'Not used by any expense yet.';
+
+  renderCategoryDanger(category, used);
+  el('catBackdrop').classList.remove('hidden');
+  if (adding) el('catName').focus();
+}
+
+// Deleting a category that has expenses would orphan them, so that path is
+// closed: an unused category can be deleted outright, a used one can only be
+// merged into another (which moves its expenses first).
+function renderCategoryDanger(category, used) {
+  const box = el('catDanger');
+  box.innerHTML = '';
+  if (!category) return;
+
+  if (!used) {
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn-danger';
+    del.textContent = 'Delete category';
+    del.addEventListener('click', () => {
+      if (!window.confirm(`Delete "${category.label}"?`)) return;
+      try {
+        Store.removeCategory(category.id);
+        closeCategoryEditor();
+        afterCategoryChange('Category deleted');
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    box.appendChild(del);
+    return;
+  }
+
+  const others = Store.getCategories({ includeHidden: true }).filter((c) => c.id !== category.id);
+  if (!others.length) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'merge-box';
+  const label = document.createElement('p');
+  label.className = 'hint';
+  label.textContent = `To retire this category, merge its ${used} ${used === 1 ? 'expense' : 'expenses'} into another one. Hiding it instead keeps the history exactly as it is.`;
+  const select = document.createElement('select');
+  select.className = 'merge-select';
+  others.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.icon} ${c.label}`;
+    select.appendChild(opt);
+  });
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'btn-danger';
+  go.textContent = 'Merge and delete';
+  go.addEventListener('click', () => {
+    const target = others.find((c) => c.id === select.value);
+    if (!target) return;
+    if (!window.confirm(`Move ${used} ${used === 1 ? 'expense' : 'expenses'} from "${category.label}" into "${target.label}", then delete "${category.label}"?`)) return;
+    try {
+      const { moved } = Store.mergeCategory(category.id, target.id);
+      closeCategoryEditor();
+      afterCategoryChange(`Moved ${moved} into ${target.label}`);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  wrap.append(label, select, go);
+  box.appendChild(wrap);
+}
+
+function closeCategoryEditor() {
+  editingCategory = null;
+  el('catBackdrop').classList.add('hidden');
+}
+
+function saveCategoryEditor() {
+  const label = el('catName').value.trim();
+  const icon = el('catIcon').value.trim();
+  if (!label) {
+    toast('Give the category a name.');
+    return;
+  }
+  try {
+    if (editingCategory) {
+      Store.updateCategory(editingCategory.id, { label, icon, hidden: el('catHidden').checked });
+      closeCategoryEditor();
+      afterCategoryChange('Category saved');
+    } else {
+      Store.addCategory({ label, icon });
+      closeCategoryEditor();
+      afterCategoryChange('Category added');
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+// Categories feed the picker, the compare screen and every breakdown, so a
+// change has to refresh all of them.
+function afterCategoryChange(message) {
+  renderCategoryManager();
+  renderChips();
+  renderAll();
+  toast(message);
+}
+
 // ---------- Settings ----------
 
 function renderSettings() {
@@ -672,6 +882,8 @@ function renderSettings() {
   el('setBudget').value = s.monthlyBudgetMinor
     ? String(s.monthlyBudgetMinor / Store.MINOR_PER_MAJOR)
     : '';
+  el('quickUrl').textContent = `${location.origin}${location.pathname}?amount=AMOUNT`;
+  renderCategoryManager();
 }
 
 function saveCurrency() {
@@ -686,17 +898,65 @@ function saveBudget() {
   renderAll();
 }
 
-function downloadBackup() {
-  const json = JSON.stringify(Store.exportData(), null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `tappy-backup-${todayStr()}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function downloadBackup() {
+  downloadFile(
+    `tappy-backup-${todayStr()}.json`,
+    JSON.stringify(Store.exportData(), null, 2),
+    'application/json'
+  );
+}
+
+function downloadCsv() {
+  // The BOM makes Excel read it as UTF-8 rather than mangling the currency sign.
+  downloadFile(`tappy-${todayStr()}.csv`, `﻿${Store.exportCsv()}`, 'text/csv;charset=utf-8');
+  toast('CSV exported');
+}
+
+/**
+ * Opens straight into the keypad from a URL such as
+ * `?amount=250&category=food&note=Lunch`, which is what lets an iOS Shortcut
+ * (Back Tap, Lock Screen, Siri) act like a native quick-add widget.
+ * The entry is never saved automatically - it is prefilled and left one tap
+ * from confirmation, so a stray link can't silently write to the log.
+ */
+function applyQuickAdd() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('amount') && !params.has('add')) return;
+  const rawAmount = params.get('amount') || '';
+  const rawCategory = (params.get('category') || '').trim().toLowerCase();
+  const note = params.get('note') || '';
+
+  // Drop the query immediately so reloading the app cannot replay the entry.
+  history.replaceState(null, '', location.pathname);
+
+  openSheet(null);
+  const minor = parseAmountToMinor(rawAmount);
+  if (minor > 0) {
+    state.amount = String(minor / Store.MINOR_PER_MAJOR);
+    renderAmount();
+  }
+  if (rawCategory) {
+    const match = Store.getCategories().find(
+      (c) => c.id === rawCategory || c.label.toLowerCase() === rawCategory
+    );
+    if (match) {
+      state.category = match.id;
+      renderChips();
+    }
+  }
+  if (note) el('noteInput').value = note.slice(0, 60);
 }
 
 function handleImport(file) {
@@ -788,12 +1048,37 @@ function init() {
   el('setBudget').addEventListener('change', saveBudget);
   el('setBudget').addEventListener('blur', saveBudget);
   el('exportBtn').addEventListener('click', downloadBackup);
+  el('exportCsvBtn').addEventListener('click', downloadCsv);
   el('importBtn').addEventListener('click', () => el('importFile').click());
   el('importFile').addEventListener('change', (e) => handleImport(e.target.files[0]));
   el('clearBtn').addEventListener('click', clearEverything);
 
+  el('catCancel').addEventListener('click', closeCategoryEditor);
+  el('catSave').addEventListener('click', saveCategoryEditor);
+  el('catBackdrop').addEventListener('click', (e) => {
+    if (e.target === el('catBackdrop')) closeCategoryEditor();
+  });
+  el('copyQuickUrl').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(el('quickUrl').textContent);
+      toast('Address copied');
+    } catch (err) {
+      toast('Copy failed — select the address by hand');
+    }
+  });
+
   document.addEventListener('keydown', (e) => {
+    if (!el('catBackdrop').classList.contains('hidden')) {
+      if (e.key === 'Escape') closeCategoryEditor();
+      return;
+    }
     if (el('sheetBackdrop').classList.contains('hidden')) return;
+    // While a text field has focus it owns its keystrokes - otherwise typing a
+    // note would also drive the keypad and Backspace would eat the amount.
+    if (e.target instanceof HTMLInputElement && e.target.type !== 'checkbox') {
+      if (e.key === 'Escape') closeSheet();
+      return;
+    }
     if (e.key === 'Escape') closeSheet();
     else if (e.key === 'Enter') saveSheet();
     else if (e.key === 'Backspace') pressKey('back');
@@ -801,6 +1086,7 @@ function init() {
   });
 
   renderToday();
+  applyQuickAdd();
 }
 
 document.addEventListener('DOMContentLoaded', init);
