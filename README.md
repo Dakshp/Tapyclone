@@ -7,6 +7,15 @@ It is a Progressive Web App: plain HTML, CSS and JavaScript with no build step,
 no framework and no backend. Everything you log stays in your browser's
 localStorage on your own device.
 
+## Publishing it
+
+One-time setup, in this repo's **Settings → Pages**: set Source to
+**Deploy from a branch**, pick branch `main` and folder `/ (root)`, then Save.
+GitHub serves the site a minute or so later and republishes it on every push.
+
+(The Actions token is not permitted to create a Pages site programmatically,
+so this one switch has to be flipped by hand.)
+
 ## Install on your phone
 
 **iPhone** — open the site in Safari, tap Share, then **Add to Home Screen**.
