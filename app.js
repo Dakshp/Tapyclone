@@ -192,23 +192,104 @@ function renderBudget() {
 // ---------- Compare dashboard ----------
 
 const compare = {
-  granularity: 'month',
-  period: todayStr().slice(0, 7), // the highlighted bar
-  anchor: todayStr().slice(0, 7), // the period the visible window ends at
+  granularity: 'day', // it is a daily tracker, so start on days
+  period: todayStr(), // the highlighted bar
+  anchor: todayStr(), // the period the visible window ends at
   categoryId: null,
   showTable: false,
 };
 
-// How many periods of context sit behind the selected one.
-const SPAN = { month: 12, year: 6 };
+// Few, wide, clearly-labelled bars beat a dense year of slivers.
+const SPAN = { day: 7, week: 6, month: 6, year: 4 };
+
+const UNIT_NAME = { day: 'Day', week: 'Week', month: 'Month', year: 'Year' };
+
+function parseUTC(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function fmtUTC(date, opts) {
+  return date.toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' });
+}
+
+/**
+ * "Today", "This week", "Last month" and friends - only when the period really
+ * is the current or immediately preceding one, so the wording is never a lie.
+ */
+function relativePeriodName(period, granularity) {
+  const current = Store.periodOf(todayStr(), granularity);
+  if (period === current) return { day: 'Today', week: 'This week', month: 'This month', year: 'This year' }[granularity];
+  if (period === Store.shiftPeriod(current, granularity, -1)) {
+    return { day: 'Yesterday', week: 'Last week', month: 'Last month', year: 'Last year' }[granularity];
+  }
+  return null;
+}
 
 function periodLabel(period, granularity, style = 'long') {
+  const relative = relativePeriodName(period, granularity);
+  if (relative && style !== 'plain') return relative;
+
   if (granularity === 'year') return period;
-  const [y, m] = period.split('-').map(Number);
-  const d = new Date(Date.UTC(y, m - 1, 1));
-  if (style === 'initial') return d.toLocaleDateString(undefined, { month: 'narrow', timeZone: 'UTC' });
-  if (style === 'short') return d.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
-  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+  if (granularity === 'month') {
+    const [y, m] = period.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    return style === 'short'
+      ? fmtUTC(d, { month: 'short' })
+      : fmtUTC(d, { month: 'long', year: 'numeric' });
+  }
+
+  if (granularity === 'week') {
+    const start = parseUTC(period);
+    const end = parseUTC(Store.shiftPeriod(period, 'day', 6));
+    const sameMonth = start.getUTCMonth() === end.getUTCMonth();
+    return sameMonth
+      ? `${start.getUTCDate()}–${end.getUTCDate()} ${fmtUTC(end, { month: 'short' })}`
+      : `${start.getUTCDate()} ${fmtUTC(start, { month: 'short' })} – ${end.getUTCDate()} ${fmtUTC(end, { month: 'short' })}`;
+  }
+
+  const d = parseUTC(period);
+  return style === 'short'
+    ? fmtUTC(d, { day: 'numeric', month: 'short' })
+    : fmtUTC(d, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+/**
+ * Axis labels are two short stacked lines rather than one cramped string, so a
+ * day reads "Mon / 11" and a month reads "Aug" instead of a bare initial.
+ */
+function axisLabel(period, granularity) {
+  if (granularity === 'year') return [period, ''];
+  if (granularity === 'month') {
+    const [y, m] = period.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    return [fmtUTC(d, { month: 'short' }), m === 1 ? String(y) : ''];
+  }
+  if (granularity === 'week') {
+    const start = parseUTC(period);
+    const end = parseUTC(Store.shiftPeriod(period, 'day', 6));
+    return [`${start.getUTCDate()}–${end.getUTCDate()}`, fmtUTC(end, { month: 'short' })];
+  }
+  const d = parseUTC(period);
+  return [fmtUTC(d, { weekday: 'short' }), String(d.getUTCDate())];
+}
+
+// Reads inside a sentence ("compared with yesterday"), so relative names are
+// lowercased and concrete dates are left as they are.
+function vsLabel(period, granularity) {
+  const relative = relativePeriodName(period, granularity);
+  return relative ? relative.toLowerCase() : periodLabel(period, granularity, 'plain');
+}
+
+// A date that sits inside the period, used to carry the selection across a
+// granularity switch (today wins when the period contains it).
+function representativeDate(period, granularity) {
+  const today = todayStr();
+  if (Store.periodOf(today, granularity) === period) return today;
+  if (granularity === 'year') return `${period}-01-01`;
+  if (granularity === 'month') return `${period}-01`;
+  return period;
 }
 
 // Direction is carried by a glyph AND a word, never by colour alone - for an
@@ -225,7 +306,7 @@ function deltaInfo(deltaMinor, hasPrevious) {
 }
 
 function syncComparePeriod() {
-  compare.period = compare.granularity === 'year' ? state.date.slice(0, 4) : state.date.slice(0, 7);
+  compare.period = Store.periodOf(state.date, compare.granularity);
   compare.anchor = compare.period;
 }
 
@@ -253,7 +334,7 @@ function renderCompare() {
   });
 
   el('periodTitle').textContent = periodLabel(data.period, data.granularity);
-  el('seriesHead').textContent = data.granularity === 'year' ? 'Year by year' : 'Month by month';
+  el('seriesHead').textContent = `${UNIT_NAME[data.granularity]} by ${UNIT_NAME[data.granularity].toLowerCase()}`;
 
   const focus = data.categoryId ? categoryMeta(data.categoryId) : null;
   el('cmpLabel').textContent = focus ? `${focus.icon} ${focus.label}` : 'Total spent';
@@ -266,12 +347,54 @@ function renderCompare() {
 
   const entries = `${data.entryCount} ${data.entryCount === 1 ? 'entry' : 'entries'}`;
   el('cmpSub').textContent = data.hasPrevious
-    ? `vs ${periodLabel(data.previousPeriod, data.granularity)} · ${entries}`
+    ? `compared with ${vsLabel(data.previousPeriod, data.granularity)} · ${entries}`
     : entries;
 
+  renderTiles(data);
   renderPeriodChart(data);
   renderCategoryCompare(data);
   renderTableView(data);
+}
+
+// Two plain-language figures beside the headline. "Average a day" is the one
+// number that makes week/month/year totals comparable to each other; on a
+// single day it would just restate the headline, so it is left out there.
+function renderTiles(data) {
+  const box = el('cmpTiles');
+  box.innerHTML = '';
+  const tiles = [];
+
+  if (data.granularity !== 'day' && data.dayCount > 0 && data.currentTotal > 0) {
+    tiles.push({
+      label: 'Average a day',
+      value: formatMoney(Math.round(data.currentTotal / data.dayCount), { compact: true }),
+      note: `over ${data.dayCount} ${data.dayCount === 1 ? 'day' : 'days'}`,
+    });
+  }
+  if (data.biggest) {
+    const meta = categoryMeta(data.biggest.category);
+    tiles.push({
+      label: 'Biggest single spend',
+      value: formatMoney(data.biggest.amountMinor, { compact: true }),
+      note: data.biggest.note || `${meta.icon} ${meta.label}`,
+    });
+  }
+
+  tiles.forEach((t) => {
+    const tile = document.createElement('div');
+    tile.className = 'stat-tile';
+    const label = document.createElement('span');
+    label.className = 'tile-label';
+    label.textContent = t.label;
+    const value = document.createElement('span');
+    value.className = 'tile-value';
+    value.textContent = t.value;
+    const note = document.createElement('span');
+    note.className = 'tile-note';
+    note.textContent = t.note;
+    tile.append(label, value, note);
+    box.appendChild(tile);
+  });
 }
 
 // Top corners rounded, base square - the data-end is rounded, the baseline is not.
@@ -282,16 +405,18 @@ function barPath(x, y, w, h, r) {
 
 function renderPeriodChart(data) {
   const svg = el('periodSvg');
-  const W = 700;
-  const H = 250;
-  // Top band leaves room for the selected bar's direct label; the bottom band
-  // holds the axis labels, so nothing is clipped by the container.
-  const pad = { top: 42, bottom: 38, side: 10 };
+  // The viewBox is kept close to the real rendered width so text scales to a
+  // sensible size rather than shrinking to a fraction of what it says.
+  const W = 360;
+  const H = 190;
+  // Top band holds the selected bar's value; the bottom band holds two lines of
+  // axis label, so neither is ever clipped by the container.
+  const pad = { top: 28, bottom: 46, side: 6 };
   const plotH = H - pad.top - pad.bottom;
   const plotW = W - pad.side * 2;
   const n = data.series.length;
   const max = Math.max(...data.series.map((s) => s.totalMinor), 1);
-  const gap = n > 8 ? 8 : 16;
+  const gap = 10;
   const barW = (plotW - gap * (n - 1)) / n;
   const baseY = pad.top + plotH;
 
@@ -304,24 +429,24 @@ function renderPeriodChart(data) {
       const y = baseY - h;
       const selected = s.period === data.period;
       const cx = x + barW / 2;
-      const label =
-        data.granularity === 'year'
-          ? s.period
-          : periodLabel(s.period, 'month', n > 8 ? 'initial' : 'short');
-      // The label lives in the reserved top band rather than riding the bar top,
-      // so it can never collide with a taller neighbour; x is clamped so it
-      // stays inside the plot at either end.
-      const labelX = Math.min(Math.max(cx, 52), W - 52);
+      const [line1, line2] = axisLabel(s.period, data.granularity);
+      // The value sits in the reserved top band rather than riding the bar top,
+      // so it can never collide with a taller neighbour; x is clamped to stay
+      // inside the plot at either end.
+      const labelX = Math.min(Math.max(cx, 34), W - 34);
       const value = selected
-        ? `<text x="${labelX.toFixed(1)}" y="24" text-anchor="middle" font-size="18"
+        ? `<text x="${labelX.toFixed(1)}" y="17" text-anchor="middle" font-size="15"
                  font-weight="700" fill="var(--viz-ink)">${formatMoney(s.totalMinor, { compact: true })}</text>`
         : '';
       return `
         <path d="${barPath(x, y, barW, h, 4)}" fill="${selected ? 'var(--viz-current)' : 'var(--viz-context)'}"></path>
         ${value}
-        <text x="${cx.toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="17"
+        <text x="${cx.toFixed(1)}" y="${H - 26}" text-anchor="middle" font-size="12.5"
               fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
-              font-weight="${selected ? '650' : '400'}">${label}</text>
+              font-weight="${selected ? '700' : '500'}">${line1}</text>
+        <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="12.5"
+              fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
+              font-weight="${selected ? '700' : '400'}">${line2}</text>
         <rect class="hit" data-period="${s.period}" x="${x - gap / 2}" y="${pad.top}"
               width="${barW + gap}" height="${plotH + pad.bottom}" fill="transparent"
               tabindex="0" role="button"></rect>
@@ -365,7 +490,8 @@ function showPeriodTip(s, data, fraction) {
   // Value leads, label follows - the reader already knows which bar they are on.
   const value = document.createElement('strong');
   value.className = 'tip-value';
-  value.textContent = formatMoney(s.totalMinor);
+  // An empty period says so, rather than presenting a hollow "0.00" as data.
+  value.textContent = s.totalMinor > 0 ? formatMoney(s.totalMinor) : 'Nothing spent';
   const label = document.createElement('span');
   label.className = 'tip-label';
   label.textContent = periodLabel(s.period, data.granularity);
@@ -501,13 +627,14 @@ function renderTableView(data) {
   if (!compare.showTable) return;
 
   box.innerHTML = '';
+  const unit = UNIT_NAME[data.granularity];
   const periodCaption = document.createElement('p');
   periodCaption.className = 'table-caption';
-  periodCaption.textContent = data.granularity === 'year' ? 'Year by year' : 'Month by month';
+  periodCaption.textContent = `${unit} by ${unit.toLowerCase()}`;
   box.append(
     periodCaption,
     buildTable(
-      [data.granularity === 'year' ? 'Year' : 'Month', 'Spent'],
+      [unit, 'Spent'],
       data.series.map((s) => [periodLabel(s.period, data.granularity), formatMoney(s.totalMinor)])
     )
   );
@@ -562,14 +689,11 @@ function initCompareControls() {
   el('granularityToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-gran]');
     if (!btn || btn.dataset.gran === compare.granularity) return;
-    // Carry the selection across the switch instead of resetting to today.
-    compare.period =
-      btn.dataset.gran === 'year'
-        ? compare.period.slice(0, 4)
-        : compare.period === todayStr().slice(0, 4)
-          ? todayStr().slice(0, 7)
-          : `${compare.period}-12`;
+    // Carry the selection across the switch via a date inside it, rather than
+    // resetting to today - zooming out from 3 March should land on March.
+    const date = representativeDate(compare.period, compare.granularity);
     compare.granularity = btn.dataset.gran;
+    compare.period = Store.periodOf(date, compare.granularity);
     compare.anchor = compare.period;
     el('granularityToggle')
       .querySelectorAll('button')

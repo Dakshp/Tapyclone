@@ -41,11 +41,12 @@ Once installed it works with no connection at all.
   earlier days with the arrows or jump to a date.
 - **Monthly budget** that tells you what is left *and* what that works out to
   per day for the rest of the month, so overspending shows up early.
-- **Compare** — an interactive dashboard for reading one period against
-  another. Switch between **Monthly** and **Yearly**, tap any bar to compare
-  that period, and focus a single category to rescope the whole screen. Each
-  category gets a dumbbell showing where it sat last period and where it sits
-  now, so the direction of change is visible without reading a number.
+- **Compare** — an interactive dashboard that zooms out in four steps:
+  **Day → Week → Month → Year**, starting on Day. Tap any bar to compare that
+  period, or focus a single category to rescope the whole screen. Each category
+  gets a dumbbell showing where it sat last period and where it sits now, so
+  the direction of change is visible without reading a number. Below the chart,
+  **average a day** and **biggest single spend** put the headline in context.
   Every plotted value is also available as a plain table.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
@@ -77,6 +78,22 @@ the breakdown rather than silently dropped.
 
 Tap any row on the Today screen. The sheet reopens prefilled, so you can fix
 the amount, move it to another category, change the note, or delete it.
+
+## Legibility
+
+The app is built for someone tracking daily spending, not for a chart reader,
+so the interface leans plain:
+
+- Axis labels are words and numbers on two short lines — `Mon` over `11`,
+  `Aug` rather than a bare `A`. Six or seven wide bars, never twelve slivers.
+- Changes are written out — "▲ ₹1,100 more compared with last month" — instead
+  of leaving the reader to subtract.
+- A period with nothing in it says "Nothing spent" rather than showing ₹0.00 as
+  though it were a measurement.
+- The add button is centred and oversized: it is the one action the app exists
+  for, and the middle of the bottom edge is the easiest place to hit.
+- The layout is capped at phone width, so on a tablet or desktop it stays a
+  phone-shaped app instead of stretching the chart into a huge empty box.
 
 ## Notes on the code
 

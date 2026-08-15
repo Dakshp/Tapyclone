@@ -67,8 +67,10 @@
       <!-- One filter row, above everything it scopes. -->
       <div class="filter-row">
         <div class="segmented" id="granularityToggle" role="group" aria-label="Compare by">
-          <button type="button" data-gran="month" class="active">Monthly</button>
-          <button type="button" data-gran="year">Yearly</button>
+          <button type="button" data-gran="day" class="active">Day</button>
+          <button type="button" data-gran="week">Week</button>
+          <button type="button" data-gran="month">Month</button>
+          <button type="button" data-gran="year">Year</button>
         </div>
         <select id="focusCategory" aria-label="Focus one category">
           <option value="">All categories</option>
@@ -93,6 +95,9 @@
         </div>
         <p class="chart-note">Tap any bar to compare that period.</p>
       </div>
+
+      <!-- Supporting figures sit below the chart so the chart stays above the fold. -->
+      <div class="stat-tiles" id="cmpTiles"></div>
 
       <div class="section-head">
         <h2>Category change</h2>
@@ -172,11 +177,11 @@
 
   <!-- ============ BOTTOM TABS ============ -->
   <nav class="tabbar">
-    <button class="tab active" data-screen="today">
-      <span class="tab-icon">&#9679;</span><span>Today</span>
-    </button>
     <button class="tab" data-screen="stats">
       <span class="tab-icon">&#9646;</span><span>Stats</span>
+    </button>
+    <button class="tab active" data-screen="today">
+      <span class="tab-icon">&#9679;</span><span>Today</span>
     </button>
     <button class="tab" data-screen="settings">
       <span class="tab-icon">&#9881;</span><span>Settings</span>

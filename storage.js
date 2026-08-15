@@ -301,15 +301,34 @@ const Store = (() => {
 
   // ---------- Comparison analytics ----------
 
-  // A "period" is a plain string key: 'YYYY-MM' for months, 'YYYY' for years.
+  // A "period" is a plain string key, and every form sorts chronologically as
+  // plain text: 'YYYY-MM-DD' for a day, the Monday's date for a week,
+  // 'YYYY-MM' for a month, 'YYYY' for a year.
+  function weekStart(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    const mondayIndex = (dt.getUTCDay() + 6) % 7; // Sunday(0) becomes 6
+    dt.setUTCDate(dt.getUTCDate() - mondayIndex);
+    return dt.toISOString().slice(0, 10);
+  }
+
   function periodOf(dateStr, granularity) {
-    return granularity === 'year' ? dateStr.slice(0, 4) : dateStr.slice(0, 7);
+    if (granularity === 'year') return dateStr.slice(0, 4);
+    if (granularity === 'month') return dateStr.slice(0, 7);
+    if (granularity === 'week') return weekStart(dateStr);
+    return dateStr;
   }
 
   function shiftPeriod(period, granularity, delta) {
     if (granularity === 'year') return String(Number(period) + delta);
-    const [y, m] = period.split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+    if (granularity === 'month') {
+      const [y, m] = period.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+    }
+    const [y, m, d] = period.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + delta * (granularity === 'week' ? 7 : 1));
+    return dt.toISOString().slice(0, 10);
   }
 
   // One pass over the log builds every total the comparison screen needs,
@@ -363,6 +382,21 @@ const Store = (() => {
     const curBucket = idx[period] || { byCat: {}, count: 0 };
     const prevBucket = idx[previous] || { byCat: {}, count: 0 };
 
+    // Expenses inside the selected period, honouring the category focus, so the
+    // headline figures below always agree with the headline total.
+    const inPeriod = expenses.filter(
+      (e) => periodOf(e.date, granularity) === period && (!categoryId || e.category === categoryId)
+    );
+    const biggest = inPeriod.reduce((best, e) => (!best || e.amountMinor > best.amountMinor ? e : best), null);
+
+    // Days counted for the average stop at today, so a part-finished month is
+    // not averaged over days that have not happened yet.
+    const bounds = periodBounds(period, granularity);
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const lastDay = bounds.end > todayKey ? todayKey : bounds.end;
+    const dayCount = lastDay < bounds.start ? 0 : daysBetween(bounds.start, lastDay) + 1;
+
     const categories = getCategoriesForDisplay().map((c) => {
       const cur = curBucket.byCat[c.id] || 0;
       const prev = prevBucket.byCat[c.id] || 0;
@@ -385,7 +419,25 @@ const Store = (() => {
         : curBucket.count,
       categories,
       hasPrevious: Boolean(idx[previous]),
+      biggest,
+      dayCount,
     };
+  }
+
+  function periodBounds(period, granularity) {
+    if (granularity === 'day') return { start: period, end: period };
+    if (granularity === 'week') return { start: period, end: shiftPeriod(period, 'day', 6) };
+    if (granularity === 'month') {
+      const [y, m] = period.split('-').map(Number);
+      return { start: `${period}-01`, end: new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10) };
+    }
+    return { start: `${period}-01-01`, end: `${period}-12-31` };
+  }
+
+  function daysBetween(a, b) {
+    const [ay, am, ad] = a.split('-').map(Number);
+    const [by, bm, bd] = b.split('-').map(Number);
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
   }
 
   // ---------- Settings ----------
