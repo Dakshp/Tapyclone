@@ -120,6 +120,19 @@ Direction is decided from the first few pixels of a drag: a mostly-vertical
 movement stays with the scroller and is never reclaimed, so a slightly slanted
 scroll cannot turn into a page change.
 
+Three details are what make the chart gesture feel like it is working rather
+than like nothing happened:
+
+- The card's snap-back transition is **switched off while the finger is down**.
+  Left on, it animates *towards* each new position instead of sitting at it, so
+  the card trails the finger and the drag feels dead.
+- A touch fires `pointerenter` on a bar but **never** `pointerleave`, so the
+  tooltip would pin itself open for the whole gesture and stay there afterwards,
+  naming a period that is no longer selected.
+- A swipe ends in a synthesised click. Without a short guard after the gesture,
+  that click selects whichever bar the finger lifted over and immediately undoes
+  the period change.
+
 ## Editing an expense
 
 Tap any row on the Today screen, or use **Edit** from its swipe actions. The
@@ -140,11 +153,20 @@ detached capsule rather than a bar welded to the screen edge, and the add button
 is tinted glass with a specular top edge.
 
 The add button is the same material, tinted rather than solid, so content blurs
-and colours through it instead of being hidden behind it.
+and colours through it instead of being hidden behind it. Its tint is kept
+deliberately flat: a strong centre-to-edge gradient turns a circle into a shiny
+plastic ball, which is the opposite of what the material is going for. The depth
+comes from the rim, not from shading the face.
 
 Apple's guidance for native apps is *"don't fake borders or bevels; the system
 adds highlights for you"*. On the web nothing does, so the specular edge is drawn
 here — but kept to a thin bright rim that fades underneath, rather than a bevel.
+
+The swipe actions follow the same logic. **Edit** and **Delete** are inset,
+rounded pills echoing the row's own shape, not full-bleed colour blocks — a block
+reads as raw background showing through a hole, a pill reads as a control. Each
+carries an icon *and* its word: Delete is destructive enough that it should never
+rest on a glyph alone.
 
 The important constraint is that **the blur is an enhancement, never what keeps
 text readable**. iOS's *Reduce Transparency* setting switches it off, and some

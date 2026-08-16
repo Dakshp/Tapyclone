@@ -221,7 +221,7 @@ function closeSwipedRow() {
   openSwipeRow = null;
 }
 
-const SWIPE_REVEAL = 168; // width of the two action buttons
+const SWIPE_REVEAL = 176; // two action pills plus the gaps between them
 
 /**
  * An expense row with iOS-style trailing actions: swipe left to reveal Edit and
@@ -237,23 +237,31 @@ function buildExpenseRow(e) {
   const actions = document.createElement('div');
   actions.className = 'row-actions';
 
-  const edit = document.createElement('button');
-  edit.className = 'row-action action-edit';
-  edit.type = 'button';
-  edit.textContent = 'Edit';
-  edit.addEventListener('click', () => {
-    closeSwipedRow();
-    openSheet(e.id);
-  });
+  const makeAction = (cls, label, iconPath, onClick) => {
+    const b = document.createElement('button');
+    b.className = `row-action ${cls}`;
+    b.type = 'button';
+    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${iconPath}</svg>`;
+    const text = document.createElement('span');
+    text.textContent = label;
+    b.appendChild(text);
+    b.addEventListener('click', onClick);
+    return b;
+  };
 
-  const del = document.createElement('button');
-  del.className = 'row-action action-delete';
-  del.type = 'button';
-  del.textContent = 'Delete';
-  del.addEventListener('click', () => {
-    closeSwipedRow();
-    deleteWithUndo(e);
-  });
+  const edit = makeAction(
+    'action-edit',
+    'Edit',
+    '<path d="M4 20h4L19 9a2.4 2.4 0 10-3.4-3.4L4.6 16.6 4 20z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+    () => { closeSwipedRow(); openSheet(e.id); }
+  );
+
+  const del = makeAction(
+    'action-delete',
+    'Delete',
+    '<path d="M5 7h14M10 7V5.4A1.4 1.4 0 0111.4 4h1.2A1.4 1.4 0 0114 5.4V7M6.5 7l.8 11.2A1.9 1.9 0 009.2 20h5.6a1.9 1.9 0 001.9-1.8L17.5 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+    () => { closeSwipedRow(); deleteWithUndo(e); }
+  );
 
   actions.append(edit, del);
 
@@ -580,6 +588,8 @@ function barPath(x, y, w, h, r) {
   return `M${x},${y + h} L${x},${y + rr} Q${x},${y} ${x + rr},${y} L${x + w - rr},${y} Q${x + w},${y} ${x + w},${y + rr} L${x + w},${y + h} Z`;
 }
 
+let lastChartSwipeAt = 0;
+
 function renderPeriodChart(data) {
   const svg = el('periodSvg');
   // The viewBox is kept close to the real rendered width so text scales to a
@@ -651,7 +661,11 @@ function renderPeriodChart(data) {
       hidePeriodTip();
       renderCompare();
     };
-    hit.addEventListener('click', select);
+    hit.addEventListener('click', () => {
+      // Suppress the tap that a horizontal swipe would otherwise synthesise.
+      if (Date.now() - lastChartSwipeAt < 400) return;
+      select();
+    });
     hit.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -883,13 +897,33 @@ function initCompareControls() {
 
   const chart = document.querySelector('#screen-stats .chart-card');
   onHorizontalSwipe(chart, {
+    // Lower than the default: the chart is a wide target with nothing else
+    // competing for a horizontal drag, so a short flick should already count.
+    threshold: 32,
     // Dragging left moves forward in time, matching the direction the timeline
     // runs and how paged iOS views behave.
-    onSwipe: (dir) => movePeriod(dir),
+    onSwipe: (dir) => {
+      lastChartSwipeAt = Date.now();
+      movePeriod(dir);
+    },
     onDrag: (dx, done) => {
-      chart.style.transform = done ? '' : `translateX(${Math.max(Math.min(dx * 0.35, 40), -40)}px)`;
+      if (done) {
+        // Restore the snap-back transition only once the finger is gone.
+        chart.classList.remove('dragging');
+        chart.style.transform = '';
+        return;
+      }
+      // While dragging, the transition would lag a frame behind the finger and
+      // make the gesture feel unresponsive.
+      chart.classList.add('dragging');
+      chart.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
+      // A touch fires pointerenter on a bar but never pointerleave, so without
+      // this the tooltip sticks open for the whole gesture.
+      hidePeriodTip();
     },
   });
+  // Same reason: end the gesture with no tooltip left hanging.
+  chart.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
 
   el('tableToggle').addEventListener('click', () => {
     compare.showTable = !compare.showTable;

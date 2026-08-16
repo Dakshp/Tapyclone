@@ -303,6 +303,10 @@ button {
   height: auto; /* the viewBox carries the aspect, so the axis band is never clipped */
 }
 
+/* WebKit does not reliably inherit an ancestor's touch-action into SVG content,
+   so the chart's own drawing surface repeats it. Without this a drag that starts
+   on a bar can be claimed by the scroller before the gesture handler sees it. */
+#periodSvg { touch-action: pan-y; }
 #periodSvg .hit { cursor: pointer; outline: none; }
 #periodSvg .hit:focus-visible { stroke: var(--viz-current); stroke-width: 2; }
 
@@ -496,22 +500,47 @@ button {
   overflow: hidden;
 }
 
+/* Two inset pills rather than full-bleed colour blocks. Blocks read as a raw
+   background showing through a hole; pills read as controls, and matching the
+   row's own rounded, floating shape keeps the list looking like one thing. */
 .row-actions {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
-  width: 168px;
+  gap: 8px;
+  width: 176px;
+  padding-left: 8px;
 }
 
 .row-action {
   flex: 1;
-  color: #fff;
-  font-size: 14.5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: var(--radius);
+  /* The icon carries the meaning at a glance, the word removes any doubt -
+     Delete is destructive enough that it should never rest on a glyph alone. */
+  font-size: 12px;
   font-weight: 650;
+  letter-spacing: .01em;
+  color: #fff;
+  box-shadow: var(--shadow);
+  transition: transform .14s ease, filter .14s ease;
 }
-.action-edit { background: var(--primary); }
-.action-delete { background: var(--danger); }
-.row-action:active { filter: brightness(.88); }
+.row-action svg {
+  width: 21px;
+  height: 21px;
+  stroke: currentColor;
+}
+.action-edit {
+  background: linear-gradient(168deg, #7c86ff, var(--primary));
+}
+.action-delete {
+  background: linear-gradient(168deg, #f8736b, var(--danger));
+}
+.row-action:active { transform: scale(.94); filter: brightness(.92); }
 
 .expense-row {
   position: relative;
@@ -528,10 +557,14 @@ button {
   width: 100%;
   text-align: left;
 }
-.row-wrap.revealed .expense-row { transform: translateX(-168px); }
+.row-wrap.revealed .expense-row { transform: translateX(-176px); }
 
 /* The chart follows the finger a little before snapping to the next period. */
 .chart-card { touch-action: pan-y; transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+/* While a finger is down the transition would animate towards each new position
+   instead of sitting at it, so the card trails the finger by a frame and the
+   gesture feels dead. It comes back for the snap once the finger lifts. */
+.chart-card.dragging { transition: none; }
 #screen-today .hero-card { touch-action: pan-y; }
 
 .row-icon {
@@ -622,18 +655,30 @@ button {
   border-radius: 37px;
   display: grid;
   place-items: center;
+  /* Three stacked layers, which is what separates glass from a coloured circle:
+     a specular blob where light lands, a hairline of refracted brightness just
+     inside the rim, and only then the tint. The tint is deep enough at the
+     bottom to keep a white glyph readable over a white list, and thinnest at the
+     top where the highlight already lifts it. */
   background:
-    linear-gradient(168deg,
-      rgba(139, 148, 255, .66) 0%,
-      rgba(99, 102, 241, .60) 45%,
-      rgba(79, 70, 229, .58) 100%);
-  -webkit-backdrop-filter: saturate(200%) blur(20px);
-  backdrop-filter: saturate(200%) blur(20px);
+    /* A short sheen where light lands, not a sphere: a strong centre-to-edge
+       gradient turns glass into a shiny plastic ball, which is exactly what
+       Apple's material avoids. The tint stays nearly flat and the depth comes
+       from the rim instead. */
+    linear-gradient(150deg, rgba(255, 255, 255, .38) 0%, rgba(255, 255, 255, .05) 32%, rgba(255, 255, 255, 0) 50%),
+    /* Deep enough that the white glyph clears 3:1 against it even with the blur
+       switched off - the transparency is decoration, the contrast is not. */
+    linear-gradient(180deg, rgba(96, 106, 246, .80) 0%, rgba(62, 60, 205, .88) 100%);
+  -webkit-backdrop-filter: saturate(240%) blur(24px);
+  backdrop-filter: saturate(240%) blur(24px);
   color: #fff;
   box-shadow:
-    0 18px 42px rgba(60, 55, 180, .40),
-    0 4px 12px rgba(20, 20, 40, .22),
-    inset 0 -10px 20px rgba(46, 38, 132, .26);
+    0 16px 36px rgba(58, 52, 170, .32),
+    0 3px 10px rgba(20, 20, 40, .18),
+    /* the bright arc a lens throws just inside its own edge, and the dimmer
+       one bounced back up from underneath */
+    inset 0 1.5px 1px rgba(255, 255, 255, .80),
+    inset 0 -1.5px 1px rgba(255, 255, 255, .28);
   transition: transform .16s ease, box-shadow .16s ease;
 }
 
