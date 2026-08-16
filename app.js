@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 
 const state = {
   date: todayStr(),
@@ -106,8 +106,17 @@ function formatTime(iso) {
 
 function categoryMeta(id) {
   return (
-    Store.getCategoriesForDisplay().find((c) => c.id === id) || { id, label: id, icon: '❓' }
+    Store.getCategoriesForDisplay().find((c) => c.id === id)
+    || { id, label: id, icon: '❓', tint: 9 }
   );
+}
+
+// Each category owns a slot in the palette; the stylesheet holds the two
+// lightnesses. Setting both as local custom properties lets a rule ask for
+// var(--tint) without knowing which category it is painting.
+function tintVars(meta) {
+  const n = Number.isInteger(meta.tint) ? meta.tint : 9;
+  return `--tint: var(--tint-${n}); --tint-soft: var(--tint-${n}-soft);`;
 }
 
 function toast(message, action) {
@@ -198,6 +207,7 @@ function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45 }) {
 
 function renderToday() {
   el('dateTitle').textContent = formatDayTitle(state.date);
+  el('dayLargeTitle').textContent = formatDayTitle(state.date);
   el('datePicker').value = state.date;
 
   const day = Store.getDay(state.date);
@@ -272,6 +282,7 @@ function buildExpenseRow(e) {
   const row = document.createElement('button');
   row.className = 'expense-row';
   row.type = 'button';
+  row.setAttribute('style', tintVars(meta));
   row.innerHTML = `
     <span class="row-icon">${meta.icon}</span>
     <span class="row-body">
@@ -1094,6 +1105,7 @@ function renderCategoryCompare(data) {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'cmp-row';
+    row.setAttribute('style', tintVars(c));
     if (data.categoryId === c.id) row.classList.add('focused');
     else if (data.categoryId) row.classList.add('dimmed');
     row.setAttribute('aria-pressed', String(data.categoryId === c.id));
@@ -1515,6 +1527,7 @@ function renderCategoryManager() {
     const main = document.createElement('button');
     main.type = 'button';
     main.className = 'cat-main';
+    main.setAttribute('style', tintVars(c));
     const icon = document.createElement('span');
     icon.className = 'row-icon';
     icon.textContent = c.icon;
@@ -2014,7 +2027,20 @@ function renderAll() {
 
 // ---------- Init ----------
 
+// The large title fades out and the compact one in as the content passes under
+// the bar, so exactly one of the two is legible at any moment.
+function watchScroll() {
+  document.querySelectorAll('.screen').forEach((screen) => {
+    const area = screen.querySelector('.scroll-area');
+    if (!area) return;
+    const sync = () => screen.classList.toggle('scrolled', area.scrollTop > 22);
+    area.addEventListener('scroll', sync, { passive: true });
+    sync();
+  });
+}
+
 function init() {
+  watchScroll();
   // The inline script in index.html has already done this before the first
   // paint. Repeating it here covers the case where storage was unreadable then
   // but is fine now - a migration from the old key, most likely.

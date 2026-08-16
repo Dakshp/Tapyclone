@@ -192,26 +192,11 @@ translucent, blurred panels that content scrolls beneath, the tab bar is a
 detached capsule rather than a bar welded to the screen edge, and the add button
 is tinted glass with a specular top edge.
 
-The add button is the same material, tinted rather than solid, so content blurs
-and colours through it instead of being hidden behind it. Its tint is kept
-deliberately flat: a strong centre-to-edge gradient turns a circle into a shiny
-plastic ball, which is the opposite of what the material is going for. The depth
-comes from the rim, not from shading the face.
-
-Apple's guidance for native apps is *"don't fake borders or bevels; the system
-adds highlights for you"*. On the web nothing does, so the specular edge is drawn
-here — but kept to a thin bright rim that fades underneath, rather than a bevel.
-
-The swipe actions follow the same logic. **Edit** and **Delete** are inset,
-rounded pills echoing the row's own shape, not full-bleed colour blocks — a block
-reads as raw background showing through a hole, a pill reads as a control. Each
-carries an icon *and* its word: Delete is destructive enough that it should never
-rest on a glyph alone.
-
 Light mode is where glass is hardest to see: a pale fill over a pale page reads
 as a solid white slab whatever its alpha claims. So the fill is thin (46%) and
 the blur is heavy — **the blur, not the fill, is what stops the text behind from
-being legible through the panel**.
+being legible through the panel**. Dark is thinner still, and lighter than the
+page behind it, the way frosted glass catches light.
 
 Thinning the fill puts more of the content behind into the panel, which costs
 contrast for the labels on top of it. Secondary text on glass therefore has its
@@ -219,42 +204,46 @@ own token, darker than `--muted` on light and lighter on dark, set so the tab
 labels stay above 4.5:1 with a white expense row blurred behind them. Measured
 off rendered pixels, not judged by eye.
 
+### What makes it read as an iOS app rather than a web app
+
+- **Grouped inset lists, not a card per row.** Expenses are one rounded container
+  with hairline rules between rows, inset past the icon. A shadowed card per row
+  is a Material idiom: it reads as six objects with gaps of page showing between
+  them, where Apple's lists are one object with rules inside. This is the single
+  loudest tell, and fixing it changed more than anything else here.
+- **No drop shadows.** Surfaces are separated by colour and a hairline.
+  Elevation is Google's metaphor; iOS does not use it for content.
+- **True black in dark mode.** `#000`, not a dark grey. On the OLED panel in
+  every iPhone since the X those pixels are simply off, which is why Apple's dark
+  mode goes there — and why `#0b0b13` reads as a washed-out imitation beside it.
+- **A type scale with actual range.** Everything used to sit at 13–17px in the
+  same weight, so nothing receded. There is now a large title that collapses into
+  the bar as you scroll, a section title, body, and a genuinely quiet footnote.
+- **One colour per category**, carried by its icon circle and its share bar so
+  the two are obviously about the same thing. Colours are stored as an index into
+  a palette rather than a hex value, because the same hue needs to be deeper on
+  white and brighter on black; the stylesheet holds both and the category holds
+  the number. Every bar clears 3:1 against its card in both themes.
+- **A real segmented control** — a sunken track with one raised thumb — instead
+  of a row of tinted toggle buttons.
+- **The tab bar marks its selection by colour alone**, not with a filled pill.
+
+The one deliberate deviation is the **add button**: iOS has no floating action
+button, and Apple would put a `+` in the top-right of the navigation bar. It is
+centred and oversized here because that is the easiest place on a phone to hit
+without looking, which matters more for this app's reader than the convention
+does. The cost is that it floats over the list while scrolling.
+
+Apple's guidance for native apps is *"don't fake borders or bevels; the system
+adds highlights for you"*. On the web nothing does, so the specular edge is drawn
+here — but kept to a thin bright rim that fades underneath, rather than a bevel.
+
 The important constraint is that **the blur is an enhancement, never what keeps
 text readable**. iOS's *Reduce Transparency* setting switches it off, and some
 engines parse `backdrop-filter` without compositing it. Both paths fall back to
 fully solid surfaces rather than leaving see-through panels with text showing
 through the labels — so if the chrome looks solid on a device, check that
 setting first.
-
-### How the theme is applied
-
-The choice is stored as `light`, `dark` or `system`, and resolved to an actual
-scheme that is stamped on `<html>` as `data-theme`. The stylesheet then needs
-exactly two blocks — `:root` for light and `:root[data-theme="dark"]` for dark —
-rather than one set of dark tokens for *dark by preference* and a second,
-identical set for *dark by choice*.
-
-That resolution runs twice. Once inline in `index.html`, **before** the
-stylesheet paints, because doing it from `app.js` would mean anyone who picked
-Dark saw a white flash on every launch. Then again in `app.js`, which owns it
-from that point on and re-applies it when a restored backup brings a different
-choice with it.
-
-`color-scheme` is set alongside the tokens, so the parts the app does not paint
-— form controls, the keyboard, scrollbars — follow too, and the `theme-color`
-meta tag is updated so a home-screen install does not sit under a pale status
-bar strip.
-
-## Naming the screen
-
-The Compare header used to show the selected period, which at day zoom read
-**Today** — so tapping the **Stats** tab landed you on a screen titled "Today",
-the same word already at the top of the Today screen. Two screens, one word, and
-a tab that disagreed with the header it opened.
-
-The header names the screen now, matching the tab. The period moved into the
-card it actually describes, with its stepper beside it — which is also where the
-calendar already kept its own month control.
 
 ## Legibility
 

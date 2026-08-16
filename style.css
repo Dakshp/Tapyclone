@@ -4,16 +4,31 @@
      keyboard, scrollbars - none of which read our custom properties. */
   color-scheme: light;
 
-  --primary: #6366f1;
-  --primary-soft: #eef0ff;
-  --danger: #ef4444;
-  --bg: #eef0f6;
+  --primary: #4f46e5;
+  --primary-soft: #e9e9fd;
+  --danger: #d93b3b;
+  /* iOS grouped-background pairing: the page is the grey, cards are the white.
+     Surfaces are separated by colour and a hairline, never by a drop shadow -
+     elevation is Material's metaphor, not Apple's. */
+  --bg: #f2f2f7;
   --surface: #ffffff;
   --text: #14141a;
-  --muted: #71717f;
-  --line: #e6e6ee;
-  --shadow: 0 1px 3px rgba(20, 20, 40, .06), 0 8px 24px rgba(20, 20, 40, .05);
-  --radius: 18px;
+  --muted: #6c6c76;
+  --line: rgba(60, 60, 67, .16);
+  --separator: rgba(60, 60, 67, .13);
+  --fill-soft: rgba(118, 118, 128, .12);
+  --shadow: none;
+  --radius: 16px;
+
+  /* One type scale, used everywhere. Everything at 13-17px in the same weight is
+     what made the old screens read as one flat wall of text. */
+  --t-large: 30px;
+  --t-title: 21px;
+  --t-head: 16.5px;
+  --t-body: 16px;
+  --t-sub: 14.5px;
+  --t-foot: 13px;
+  --t-caption: 11.5px;
 
   /* Liquid-glass materials: a translucent fill that lets content show through,
      a bright top edge standing in for the specular highlight, and a soft wide
@@ -37,6 +52,21 @@
      ground than a solid card. Darker than --muted by exactly enough to keep the
      tab labels above 4.5:1 with a white expense row blurred behind them. */
   --glass-ink-muted: #5e5e6c;
+
+  /* One hue per category. Given as numbered slots so a category stores an index
+     and the theme decides the lightness - the same colour needs to be deeper on
+     white and brighter on black. Checked so white sits above 4.5:1 on every fill
+     in light, and each ink above 4.5:1 on its own soft background. */
+  --tint-0: #d1453b; --tint-0-soft: #fbe7e5;
+  --tint-1: #b8348f; --tint-1-soft: #fbe4f3;
+  --tint-2: #7a41d6; --tint-2-soft: #eee6fb;
+  --tint-3: #2a6ad4; --tint-3-soft: #e2ecfc;
+  --tint-4: #0d7490; --tint-4-soft: #dcf0f5;
+  --tint-5: #1a7a55; --tint-5-soft: #ddf2e8;
+  --tint-6: #6b7a1f; --tint-6-soft: #eef2da;
+  --tint-7: #9a5a12; --tint-7-soft: #fbeddc;
+  --tint-8: #a03c60; --tint-8-soft: #fbe5ec;
+  --tint-9: #5b6070; --tint-9-soft: #e9eaee;
 }
 
 /* Dark is driven by an attribute on <html>, not by the media query directly.
@@ -47,15 +77,20 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --primary: #818cf8;
-  --primary-soft: #23233a;
-  --danger: #f87171;
-  --bg: #0b0b13;
-  --surface: #191926;
-  --text: #f2f2f6;
-  --muted: #9a9aab;
-  --line: #2b2b3a;
-  --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  --primary: #8f96ff;
+  --primary-soft: #262640;
+  --danger: #ff6b6b;
+  /* True black, not dark grey. On the OLED panel in every iPhone since the X
+     the pixels are simply off, which is why Apple's dark mode goes here and why
+     a #0b0b13 page reads as a washed-out imitation of it beside the real thing. */
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --text: #ffffff;
+  --muted: #9d9da6;
+  --line: rgba(255, 255, 255, .14);
+  --separator: rgba(255, 255, 255, .10);
+  --fill-soft: rgba(120, 120, 128, .24);
+  --shadow: none;
 
   /* On dark the glass must be LIGHTER than the page behind it, the way frosted
      glass catches light. Matching the background is what made it read as a
@@ -66,6 +101,17 @@
   --glass-rim-bottom: rgba(255, 255, 255, .04);
   --glass-hairline: rgba(255, 255, 255, .14);
   --glass-lift: 0 14px 40px rgba(0, 0, 0, .58), 0 3px 10px rgba(0, 0, 0, .4);
+
+  --tint-0: #ff7a70; --tint-0-soft: #3a1f1d;
+  --tint-1: #ff86d0; --tint-1-soft: #3a1f33;
+  --tint-2: #b79bff; --tint-2-soft: #2b2340;
+  --tint-3: #79b0ff; --tint-3-soft: #1e2a44;
+  --tint-4: #5cc9e6; --tint-4-soft: #17303a;
+  --tint-5: #58d3a0; --tint-5-soft: #16332a;
+  --tint-6: #c3d451; --tint-6-soft: #2c3018;
+  --tint-7: #f0a95a; --tint-7-soft: #3a2a15;
+  --tint-8: #ff8fae; --tint-8-soft: #3a1f28;
+  --tint-9: #b2b6c4; --tint-9-soft: #2a2c33;
 }
 
 /* One place to apply the material, so every glass surface stays consistent. */
@@ -172,21 +218,39 @@ button {
 .date-title {
   flex: 1;
   text-align: center;
-  font-size: 17px;
-  font-weight: 650;
+  font-size: var(--t-head);
+  font-weight: 600;
   letter-spacing: -.01em;
   padding: 6px;
 }
 
-.nav-arrow {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  font-size: 24px;
-  line-height: 1;
-  color: var(--muted);
+/* ---------- Large title ----------
+   iOS opens a screen with the title set large in the content, and collapses it
+   into the bar as you scroll. It is what makes the top of an Apple screen feel
+   like a place rather than a strip of chrome. */
+.large-title {
+  font-size: var(--t-large);
+  font-weight: 700;
+  letter-spacing: -.028em;
+  margin: 0 4px 14px;
+  transition: opacity .18s ease;
 }
-.nav-arrow:active { background: var(--primary-soft); }
+/* The compact title in the bar is the mirror image: hidden until the large one
+   has scrolled away, so exactly one of the two is ever legible. */
+.app-header .date-title,
+.app-header .compact-title { transition: opacity .18s ease; }
+.screen:not(.scrolled) .app-header .compact-title { opacity: 0; }
+.screen.scrolled .large-title { opacity: 0; }
+
+.nav-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--primary);
+}
+.nav-arrow:active { background: var(--fill-soft); }
 /* Greyed rather than hidden: a control that vanishes makes the header jump. */
 .nav-arrow[disabled] { opacity: .25; cursor: default; }
 .nav-arrow[disabled]:active { background: none; }
@@ -221,9 +285,8 @@ button {
 /* ---------- Cards ---------- */
 .hero-card {
   background: var(--surface);
-  border-radius: 20px;
-  padding: 22px 20px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,20 +294,20 @@ button {
 }
 
 .hero-label {
-  font-size: 13px;
+  font-size: var(--t-foot);
   color: var(--muted);
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .hero-amount {
-  font-size: 40px;
-  font-weight: 750;
+  font-size: 42px;
+  font-weight: 700;
   letter-spacing: -.03em;
   margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
 
-.hero-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.hero-sub { font-size: var(--t-foot); color: var(--muted); margin-top: 6px; }
 
 .hero-budget { width: 100%; margin-top: 20px; }
 
@@ -280,7 +343,6 @@ button {
 .card {
   background: var(--surface);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   overflow: hidden;
 }
 :root[data-theme="dark"] .card,
@@ -380,23 +442,30 @@ button {
   margin-bottom: 16px;
 }
 
+/* iOS segmented control: a sunken track with one raised thumb sliding in it.
+   The old version tinted the selected cell instead, which reads as a set of
+   toggle buttons rather than one control with a position. */
 .segmented {
   display: flex;
   width: 100%;
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 3px;
-  box-shadow: var(--shadow);
+  background: var(--fill-soft);
+  border-radius: 9px;
+  padding: 2px;
 }
 .segmented button {
   flex: 1;
-  padding: 10px 4px;
-  border-radius: 9px;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--muted);
+  padding: 7px 4px;
+  border-radius: 7px;
+  font-size: var(--t-sub);
+  font-weight: 550;
+  color: var(--text);
+  transition: background .18s ease;
 }
-.segmented button.active { background: var(--primary-soft); color: var(--primary); }
+.segmented button.active {
+  background: var(--surface);
+  font-weight: 600;
+}
+.segmented button:active { opacity: .6; }
 
 /* Inside a card the control sits on the same colour as the card itself, so its
    track would vanish. Sunk into the page colour instead, with no second shadow. */
@@ -408,15 +477,16 @@ button {
 }
 .card > .segmented + .hint { padding-top: 0; }
 
+/* A filter, not a headline: sits on the page fill like an iOS inline picker
+   rather than presenting itself as another white card. */
 #focusCategory {
   width: 100%;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
   border: none;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  font-size: 15px;
-  font-weight: 550;
+  background: var(--fill-soft);
+  font-size: var(--t-sub);
+  font-weight: 500;
 }
 
 /* Two shapes for the same days, so the control is a switch rather than a link.
@@ -467,8 +537,8 @@ button {
   margin-top: 10px;
   padding: 5px 12px;
   border-radius: 99px;
-  background: var(--bg);
-  font-size: 13px;
+  background: var(--fill-soft);
+  font-size: var(--t-foot);
   font-weight: 650;
 }
 .tone-up { color: var(--viz-up); }
@@ -486,30 +556,33 @@ button {
   border-bottom: 1px solid var(--line);
 }
 .cmp-row:last-child { border-bottom: none; }
+.cmp-row { border-bottom-color: var(--separator); }
 .cmp-row.dimmed { opacity: .45; }
 .cmp-row.focused { background: var(--primary-soft); }
 
 .cmp-head { display: flex; align-items: center; gap: 11px; }
-.cmp-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; }
+.cmp-name { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: 500; }
 
 /* A share of the period's total. One bar per row against a common track, so the
    rows can be compared to each other by length as well as read as numbers. */
 .share-track {
   display: block;
-  height: 8px;
+  height: 7px;
   border-radius: 4px;
-  background: var(--line);
+  background: var(--fill-soft);
   overflow: hidden;
 }
 .share-fill {
   display: block;
   height: 100%;
   border-radius: 4px;
-  background: var(--viz-current);
+  /* The category's own colour, matching its icon, so the bar and the row are
+     obviously about the same thing. */
+  background: var(--tint, var(--viz-current));
 }
 
 .cmp-foot { display: flex; align-items: baseline; gap: 8px; }
-.cmp-share { font-size: 12.5px; color: var(--muted); }
+.cmp-share { font-size: var(--t-foot); color: var(--muted); }
 
 /* ---------- Entries on the Compare screen ---------- */
 #cmpEntries { gap: 8px; }
@@ -663,31 +736,56 @@ button {
   margin: 26px 4px 10px;
 }
 .section-head h2 { margin-right: auto; }
-.section-head h2 { font-size: 15px; font-weight: 650; margin: 0; }
-.section-count { font-size: 13px; color: var(--muted); }
+.section-head h2 {
+  font-size: var(--t-title);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin: 0;
+}
+.section-count { font-size: var(--t-sub); color: var(--muted); }
 
-/* ---------- Expense rows ---------- */
-.expense-list { display: flex; flex-direction: column; gap: 8px; }
+/* ---------- Expense rows ----------
+   One grouped, inset container with hairline separators - not a floating card
+   per row. A card per row is a Material idiom: it reads as six objects with gaps
+   of page showing between them. Apple's lists are one object with rules inside,
+   which is what makes Settings, Mail and Wallet look like the same OS. */
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.expense-list:empty { background: none; }
+.expense-list > .empty-msg { background: none; }
 
 /* The actions sit underneath; the row itself slides to uncover them. */
 .row-wrap {
   position: relative;
-  border-radius: var(--radius);
   overflow: hidden;
 }
+/* Hairline between rows, inset past the icon so it reads as a list rule rather
+   than a full-width cut - exactly how iOS insets its separators. */
+.row-wrap + .row-wrap .expense-row::before,
+.row-wrap + .entry-day + .row-wrap .expense-row::before {
+  content: '';
+  position: absolute;
+  left: 62px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--separator);
+}
 
-/* Two inset pills rather than full-bleed colour blocks. Blocks read as a raw
-   background showing through a hole; pills read as controls, and matching the
-   row's own rounded, floating shape keeps the list looking like one thing. */
 .row-actions {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
-  gap: 8px;
-  width: 176px;
-  padding-left: 8px;
+  width: 168px;
 }
 
+/* Full-height blocks here, because inside a grouped list the row IS the surface -
+   inset pills would have nothing but a hole to sit in. */
 .row-action {
   flex: 1;
   display: flex;
@@ -695,28 +793,15 @@ button {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: var(--radius);
-  /* The icon carries the meaning at a glance, the word removes any doubt -
-     Delete is destructive enough that it should never rest on a glyph alone. */
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: .01em;
+  font-size: var(--t-caption);
+  font-weight: 600;
   color: #fff;
-  box-shadow: var(--shadow);
-  transition: transform .14s ease, filter .14s ease;
+  transition: filter .14s ease;
 }
-.row-action svg {
-  width: 21px;
-  height: 21px;
-  stroke: currentColor;
-}
-.action-edit {
-  background: linear-gradient(168deg, #7c86ff, var(--primary));
-}
-.action-delete {
-  background: linear-gradient(168deg, #f8736b, var(--danger));
-}
-.row-action:active { transform: scale(.94); filter: brightness(.92); }
+.row-action svg { width: 20px; height: 20px; stroke: currentColor; }
+.action-edit { background: var(--primary); }
+.action-delete { background: var(--danger); }
+.row-action:active { filter: brightness(.86); }
 
 .expense-row {
   position: relative;
@@ -727,13 +812,54 @@ button {
   align-items: center;
   gap: 12px;
   background: var(--surface);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  box-shadow: var(--shadow);
+  padding: 11px 16px 11px 14px;
   width: 100%;
   text-align: left;
+  min-height: 58px;
 }
-.row-wrap.revealed .expense-row { transform: translateX(-176px); }
+.expense-row:active { background: var(--fill-soft); }
+.row-wrap.revealed .expense-row { transform: translateX(-168px); }
+
+/* ---------- Calendar / chart cards keep their own surface ---------- */
+.chart-card { touch-action: pan-y; }
+
+.row-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tint-soft, var(--fill-soft));
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.row-body { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.row-title {
+  display: block;
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-sub {
+  display: block;
+  font-size: var(--t-foot);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-amount {
+  font-size: var(--t-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+}
 
 /* ---------- Pager ----------
    Three pages wide with the middle one at rest, so a drag moves the contents and
@@ -746,55 +872,13 @@ button {
 /* Both hero cards take a horizontal drag - days on Today, periods on Compare. */
 .hero-card { touch-action: pan-y; }
 
-.row-icon {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: 12px;
-  background: var(--primary-soft);
-  display: grid;
-  place-items: center;
-  font-size: 19px;
-}
-
-/* Rows are built from spans, so the stacked parts need explicit block layout -
-   left inline they run together on one line and .bar-track collapses to 0. */
-.row-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.row-title {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.row-sub {
-  display: block;
-  font-size: 12.5px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.row-amount {
-  font-size: 16px;
-  font-weight: 680;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
-}
-
 .list-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 11px 16px 11px 14px;
+  min-height: 58px;
+  border-bottom: 1px solid var(--separator);
 }
 .list-row:last-child { border-bottom: none; }
 .list-row .row-amount { margin-left: auto; }
@@ -829,9 +913,9 @@ button {
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(env(safe-area-inset-bottom) + 88px);
-  width: 74px;
-  height: 74px;
-  border-radius: 37px;
+  width: 66px;
+  height: 66px;
+  border-radius: 33px;
   display: grid;
   place-items: center;
   /* Three stacked layers, which is what separates glass from a coloured circle:
@@ -847,7 +931,7 @@ button {
     linear-gradient(150deg, rgba(255, 255, 255, .38) 0%, rgba(255, 255, 255, .05) 32%, rgba(255, 255, 255, 0) 50%),
     /* Deep enough that the white glyph clears 3:1 against it even with the blur
        switched off - the transparency is decoration, the contrast is not. */
-    linear-gradient(180deg, rgba(96, 106, 246, .80) 0%, rgba(62, 60, 205, .88) 100%);
+    linear-gradient(180deg, rgba(94, 92, 240, .82) 0%, rgba(58, 52, 200, .90) 100%);
   -webkit-backdrop-filter: saturate(240%) blur(24px);
   backdrop-filter: saturate(240%) blur(24px);
   color: #fff;
@@ -877,8 +961,8 @@ button {
 }
 
 .fab svg {
-  width: 30px;
-  height: 30px;
+  width: 27px;
+  height: 27px;
   /* Keeps the glyph readable when the glass happens to sit over pale content. */
   filter: drop-shadow(0 1px 2px rgba(30, 25, 90, .45));
 }
@@ -934,17 +1018,18 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
-  font-weight: 560;
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: .005em;
   color: var(--glass-ink-muted);
-  transition: background .18s ease, color .18s ease;
+  transition: color .18s ease;
 }
 /* The selected tab gets its own lighter pane inside the capsule, the way an
    iOS segmented selection sits within its track. */
-.tab.active {
-  color: var(--primary);
-  background: var(--primary-soft);
-}
+/* Tinted glyph and label, no filled pill behind it. Apple marks the selected tab
+   by colour alone; the pill was the last obviously non-iOS thing down here. */
+.tab.active { color: var(--primary); }
+.tab:active { opacity: .55; }
 /* Stroked SVG rather than a Unicode glyph: consistent weight across platforms,
    and it inherits the tab's colour on selection. */
 .tab-icon {
@@ -1094,15 +1179,15 @@ button {
 }
 .field select:focus, .field input:focus { outline: none; color: var(--primary); }
 
-.hint { font-size: 13px; color: var(--muted); padding: 12px 14px; margin: 0; line-height: 1.5; }
+.hint { font-size: var(--t-foot); color: var(--muted); padding: 12px 16px; margin: 0; line-height: 1.45; }
 
 .btn-secondary, .btn-danger {
   display: block;
-  width: calc(100% - 28px);
-  margin: 0 14px 12px;
+  width: calc(100% - 32px);
+  margin: 0 16px 12px;
   padding: 13px;
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: 11px;
+  background: var(--fill-soft);
   font-size: 15px;
   font-weight: 600;
 }

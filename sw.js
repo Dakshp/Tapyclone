@@ -1,6 +1,6 @@
 // App-shell cache so Tracky opens instantly and works with no connection.
 // Bump CACHE whenever app files change - the old cache is then dropped.
-const CACHE = 'tracky-v15';
+const CACHE = 'tracky-v16';
 const SHELL = [
   './',
   './index.html',

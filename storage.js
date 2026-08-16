@@ -27,18 +27,24 @@ const Store = (() => {
   // Seed list only. Categories live in stored data from first run, so they can
   // be renamed, reordered and added to. A category's `id` is permanent - every
   // expense points at it forever, so renaming changes only the label.
+  // Each category owns a hue, given as an index into the palette in style.css
+  // rather than a hex value: the two themes need different lightnesses for the
+  // same colour, and a number lets the stylesheet decide which. Colours are
+  // spread around the wheel so neighbours in the list never sit adjacent.
   const DEFAULT_CATEGORIES = [
-    { id: 'food', label: 'Food & Drink', icon: '\u{1F354}' },
-    { id: 'groceries', label: 'Groceries', icon: '\u{1F6D2}' },
-    { id: 'transport', label: 'Transport', icon: '\u{1F695}' },
-    { id: 'shopping', label: 'Shopping', icon: '\u{1F6CD}' },
-    { id: 'bills', label: 'Bills', icon: '\u{1F4A1}' },
-    { id: 'health', label: 'Health', icon: '\u{1F48A}' },
-    { id: 'fun', label: 'Fun', icon: '\u{1F3AC}' },
-    { id: 'home', label: 'Rent & Home', icon: '\u{1F3E0}' },
-    { id: 'education', label: 'Education', icon: '\u{1F4DA}' },
-    { id: 'other', label: 'Other', icon: '\u{2728}' },
+    { id: 'food', label: 'Food & Drink', icon: '\u{1F354}', tint: 0 },
+    { id: 'groceries', label: 'Groceries', icon: '\u{1F6D2}', tint: 3 },
+    { id: 'transport', label: 'Transport', icon: '\u{1F695}', tint: 6 },
+    { id: 'shopping', label: 'Shopping', icon: '\u{1F6CD}', tint: 1 },
+    { id: 'bills', label: 'Bills', icon: '\u{1F4A1}', tint: 4 },
+    { id: 'health', label: 'Health', icon: '\u{1F48A}', tint: 7 },
+    { id: 'fun', label: 'Fun', icon: '\u{1F3AC}', tint: 2 },
+    { id: 'home', label: 'Rent & Home', icon: '\u{1F3E0}', tint: 5 },
+    { id: 'education', label: 'Education', icon: '\u{1F4DA}', tint: 8 },
+    { id: 'other', label: 'Other', icon: '\u{2728}', tint: 9 },
   ];
+
+  const TINT_COUNT = 10;
 
   const ORPHAN_ICON = '\u{2753}';
 
@@ -66,11 +72,18 @@ const Store = (() => {
     };
   }
 
-  function normalizeCategory(c) {
+  function normalizeCategory(c, index) {
+    const tint = Number(c.tint);
     return {
       id: String(c.id == null ? '' : c.id).trim(),
       label: String(c.label == null ? '' : c.label).trim().slice(0, 30) || 'Untitled',
       icon: String(c.icon == null ? '' : c.icon).trim().slice(0, 4) || '\u{2728}',
+      // A backup written before colours existed has no tint. Falling back to the
+      // row's position spreads those across the palette instead of painting the
+      // whole list one colour.
+      tint: Number.isInteger(tint) && tint >= 0 && tint < TINT_COUNT
+        ? tint
+        : (Number(index) || 0) % TINT_COUNT,
       hidden: Boolean(c.hidden),
     };
   }
@@ -130,7 +143,7 @@ const Store = (() => {
       if (!raw) return freshData();
       const data = JSON.parse(raw);
       const list = Array.isArray(data.expenses) ? data.expenses : [];
-      const cats = Array.isArray(data.categories) ? data.categories.map(normalizeCategory).filter((c) => c.id) : [];
+      const cats = Array.isArray(data.categories) ? data.categories.map((c, i) => normalizeCategory(c, i)).filter((c) => c.id) : [];
       return {
         expenses: list.map(normalizeExpense).filter((e) => e.id && e.date),
         nextId: Number(data.nextId) || list.length + 1,
@@ -292,7 +305,10 @@ const Store = (() => {
     for (const e of live(data.expenses)) {
       if (!seen.has(e.category)) {
         seen.add(e.category);
-        out.push({ id: e.category, label: e.category, icon: ORPHAN_ICON, hidden: true, orphan: true });
+        out.push({
+          id: e.category, label: e.category, icon: ORPHAN_ICON,
+          tint: out.length % TINT_COUNT, hidden: true, orphan: true,
+        });
       }
     }
     return out;
@@ -308,9 +324,12 @@ const Store = (() => {
     );
   }
 
-  function addCategory({ label, icon }) {
+  function addCategory({ label, icon, tint }) {
     const data = load();
-    const clean = normalizeCategory({ id: slugify(label), label, icon });
+    // Carry on round the palette, so a new category does not land on the colour
+    // its neighbour already has.
+    const nextTint = Number.isInteger(Number(tint)) ? tint : data.categories.length % TINT_COUNT;
+    const clean = normalizeCategory({ id: slugify(label), label, icon, tint: nextTint });
     if (!String(label || '').trim()) throw new Error('Give the category a name.');
     // Ids must be unique and are never reused, since expenses point at them.
     const taken = new Set(data.categories.map((c) => c.id));
@@ -656,7 +675,7 @@ const Store = (() => {
     data.nextId =
       Number(parsed.nextId) || Math.max(0, ...data.expenses.map((e) => e.id)) + 1;
     if (Array.isArray(parsed.categories) && parsed.categories.length) {
-      data.categories = parsed.categories.map(normalizeCategory).filter((c) => c.id);
+      data.categories = parsed.categories.map((c, i) => normalizeCategory(c, i)).filter((c) => c.id);
     }
     if (parsed.settings) data.settings = normalizeSettings({ ...data.settings, ...parsed.settings });
     save(data);
@@ -669,6 +688,7 @@ const Store = (() => {
 
   return {
     MINOR_PER_MAJOR,
+    TINT_COUNT,
     getCategories,
     getCategoriesForDisplay,
     categoryUsage,
