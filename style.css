@@ -9,7 +9,17 @@
   --muted: #71717f;
   --line: #e6e6ee;
   --shadow: 0 1px 3px rgba(20, 20, 40, .06), 0 8px 24px rgba(20, 20, 40, .05);
-  --radius: 16px;
+  --radius: 18px;
+
+  /* Liquid-glass materials: a translucent fill that lets content show through,
+     a bright top edge standing in for the specular highlight, and a soft wide
+     shadow so the element reads as floating above the page rather than welded
+     to it. */
+  --glass-fill: rgba(255, 255, 255, .93);
+  --glass-edge: rgba(255, 255, 255, .75);
+  --glass-hairline: rgba(20, 20, 40, .07);
+  --glass-lift: 0 10px 34px rgba(20, 20, 40, .13), 0 2px 8px rgba(20, 20, 40, .06);
+  --glass-blur: saturate(180%) blur(30px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,7 +33,40 @@
     --muted: #9a9aab;
     --line: #26262f;
     --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+
+    --glass-fill: rgba(26, 26, 34, .93);
+    --glass-edge: rgba(255, 255, 255, .14);
+    --glass-hairline: rgba(255, 255, 255, .08);
+    --glass-lift: 0 10px 34px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .35);
   }
+}
+
+/* One place to apply the material, so every glass surface stays consistent. */
+.glass {
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 0.5px solid var(--glass-hairline);
+  /* The inset highlight is the specular edge - it is what stops the surface
+     reading as flat translucent plastic. */
+  box-shadow: var(--glass-lift), inset 0 0.5px 0 var(--glass-edge);
+}
+
+/* Two ways the blur can be absent: the engine lacks it, or the reader has asked
+   iOS to reduce transparency. Both end up fully opaque rather than leaving a
+   see-through panel with text showing through the labels. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .app-header, .tabbar { background: var(--surface); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .app-header, .tabbar {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .fab { background: var(--primary); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .sheet-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, .5); }
 }
 
 * { box-sizing: border-box; }
@@ -67,14 +110,23 @@ button {
 }
 
 .app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  position: relative;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 0.5px solid var(--glass-hairline);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-header { background: var(--surface); }
 }
 
 .date-title {
@@ -114,9 +166,10 @@ button {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  /* Bottom padding clears the tab bar and the centred add button, so the last
-     row is never stranded underneath them. */
-  padding: 16px 16px calc(env(safe-area-inset-bottom) + 180px);
+  /* Top padding clears the floating header, bottom padding the tab bar and the
+     add button, so nothing is ever stranded underneath them - while the content
+     itself still passes beneath the glass, which is what makes it read as glass. */
+  padding: calc(env(safe-area-inset-top) + 72px) 16px calc(env(safe-area-inset-bottom) + 184px);
 }
 
 /* ---------- Cards ---------- */
@@ -498,22 +551,36 @@ button {
 /* ---------- Add button ----------
    Centred and oversized: it is the action the app exists for, and the middle of
    the screen edge is the easiest place on a phone to hit without looking. */
+/* Tinted glass: translucent and blurred like the other surfaces, but carrying
+   enough colour to stay the obvious primary action. The gradient plus the inner
+   top highlight is what gives it the domed, lit-from-above look. */
 .fab {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom) + 86px);
-  width: 76px;
-  height: 76px;
-  border-radius: 38px;
-  background: var(--primary);
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  width: 74px;
+  height: 74px;
+  border-radius: 37px;
+  background:
+    linear-gradient(170deg, rgba(139, 148, 255, .96) 0%, rgba(79, 70, 229, .96) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 0.5px solid rgba(255, 255, 255, .34);
   color: #fff;
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 300;
-  line-height: 72px;
-  box-shadow: 0 10px 28px rgba(99, 102, 241, .5);
+  line-height: 70px;
+  box-shadow:
+    0 12px 30px rgba(79, 70, 229, .42),
+    0 2px 6px rgba(20, 20, 40, .16),
+    inset 0 1px 0 rgba(255, 255, 255, .5);
+  transition: transform .16s ease, box-shadow .16s ease;
 }
-.fab:active { transform: translateX(-50%) scale(.94); }
+.fab:active {
+  transform: translateX(-50%) scale(.93);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, .4), inset 0 1px 0 rgba(255, 255, 255, .4);
+}
 
 /* ---------- Headline stat tiles ---------- */
 .stat-tiles { display: flex; gap: 10px; margin-top: 12px; }
@@ -539,21 +606,32 @@ button {
 }
 
 /* ---------- Tab bar ---------- */
+/* A detached capsule rather than a bar welded to the screen edge: content
+   passes underneath and shows through, which is the whole point of the
+   material. */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 14px;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
   display: flex;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 7px 6px;
+  border-radius: 28px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 0.5px solid var(--glass-hairline);
+  box-shadow: var(--glass-lift), inset 0 0.5px 0 var(--glass-edge);
   z-index: 20;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--surface); }
 }
 
 .tab {
   flex: 1;
-  padding: 9px 0 7px;
+  padding: 7px 0 6px;
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -561,15 +639,23 @@ button {
   font-size: 11px;
   font-weight: 560;
   color: var(--muted);
+  transition: background .18s ease, color .18s ease;
 }
-.tab.active { color: var(--primary); }
+/* The selected tab gets its own lighter pane inside the capsule, the way an
+   iOS segmented selection sits within its track. */
+.tab.active {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
 .tab-icon { font-size: 17px; line-height: 1; }
 
 /* ---------- Add sheet ---------- */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .45);
+  background: rgba(0, 0, 0, .32);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   z-index: 40;
   display: flex;
   align-items: flex-end;
@@ -578,7 +664,8 @@ button {
 .sheet {
   width: 100%;
   background: var(--surface);
-  border-radius: 24px 24px 0 0;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -8px 40px rgba(20, 20, 40, .16), inset 0 0.5px 0 var(--glass-edge);
   padding: 8px 16px calc(env(safe-area-inset-bottom) + 16px);
   animation: rise .22s ease;
   max-height: 96vh;
@@ -817,7 +904,7 @@ button {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom) + 176px); /* clears the centred add button */
+  bottom: calc(env(safe-area-inset-bottom) + 180px); /* clears the centred add button */
   background: var(--text);
   color: var(--bg);
   padding: 11px 18px;
@@ -835,10 +922,17 @@ button {
    mostly-empty box. Kept last in the file so it wins over the base
    .screen/.tabbar placement rules it overrides. */
 @media (min-width: 560px) {
-  .screen,
-  .tabbar {
+  .screen {
     width: 100%;
     max-width: 520px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  /* The bar is inset from the screen edges, so its cap is narrower to match. */
+  .tabbar {
+    width: calc(100% - 28px);
+    max-width: 492px;
     left: 50%;
     right: auto;
     transform: translateX(-50%);

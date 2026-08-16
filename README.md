@@ -111,6 +111,19 @@ the breakdown rather than silently dropped.
 Tap any row on the Today screen. The sheet reopens prefilled, so you can fix
 the amount, move it to another category, change the note, or delete it.
 
+## Look and feel
+
+The chrome follows Apple's Liquid Glass material: the header and the tab bar are
+translucent, blurred panels that content scrolls beneath, the tab bar is a
+detached capsule rather than a bar welded to the screen edge, and the add button
+is tinted glass with a specular top edge.
+
+The important constraint is that **the blur is an enhancement, never what keeps
+text readable**. iOS's *Reduce Transparency* setting switches it off, and some
+engines parse `backdrop-filter` without compositing it. So the fills are opaque
+enough to stand alone, and `prefers-reduced-transparency` drops to fully solid
+surfaces.
+
 ## Legibility
 
 The app is built for someone tracking daily spending, not for a chart reader,
