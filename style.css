@@ -489,7 +489,35 @@ button {
 /* ---------- Expense rows ---------- */
 .expense-list { display: flex; flex-direction: column; gap: 8px; }
 
+/* The actions sit underneath; the row itself slides to uncover them. */
+.row-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.row-actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  width: 168px;
+}
+
+.row-action {
+  flex: 1;
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 650;
+}
+.action-edit { background: var(--primary); }
+.action-delete { background: var(--danger); }
+.row-action:active { filter: brightness(.88); }
+
 .expense-row {
+  position: relative;
+  /* pan-y lets the page scroll vertically while horizontal drags come to us. */
+  touch-action: pan-y;
+  transition: transform .22s cubic-bezier(.2, .8, .2, 1);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -500,7 +528,11 @@ button {
   width: 100%;
   text-align: left;
 }
-.expense-row:active { transform: scale(.985); }
+.row-wrap.revealed .expense-row { transform: translateX(-168px); }
+
+/* The chart follows the finger a little before snapping to the next period. */
+.chart-card { touch-action: pan-y; transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+#screen-today .hero-card { touch-action: pan-y; }
 
 .row-icon {
   width: 40px;
@@ -962,6 +994,16 @@ button {
   z-index: 60;
   box-shadow: var(--shadow);
   animation: rise .18s ease;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toast-action {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--primary);
+  padding: 2px 2px 2px 0;
 }
 
 /* ---------- Wide screens ----------

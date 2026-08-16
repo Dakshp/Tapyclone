@@ -106,10 +106,31 @@ reconcile with the total. As a backstop, if a backup from another device
 references a category this one has never heard of, that id is still shown in
 the breakdown rather than silently dropped.
 
+## Gestures
+
+- **Swipe the day card** left or right to move between days; **swipe the chart**
+  on the Compare screen to move between periods, at whichever zoom level is
+  selected. Dragging left moves forward in time, the direction the timeline
+  runs. The arrows stay, because a gesture is invisible and a first-time user
+  needs something to see.
+- **Swipe an expense left** to reveal **Edit** and **Delete** in place — the
+  same pattern as Mail, with no intermediate menu to step through.
+
+Direction is decided from the first few pixels of a drag: a mostly-vertical
+movement stays with the scroller and is never reclaimed, so a slightly slanted
+scroll cannot turn into a page change.
+
 ## Editing an expense
 
-Tap any row on the Today screen. The sheet reopens prefilled, so you can fix
-the amount, move it to another category, change the note, or delete it.
+Tap any row on the Today screen, or use **Edit** from its swipe actions. The
+sheet reopens prefilled, so you can fix the amount, move it to another category,
+change the note, or delete it.
+
+Deleting from a swipe offers **Undo** rather than a confirmation dialog: a swipe
+is easy to make by accident, so the recovery belongs after the action rather
+than as a question before it. Undo works because deletion is a tombstone — the
+restore simply clears the flag, and its fresh timestamp means the un-delete wins
+on every other device too.
 
 ## Look and feel
 

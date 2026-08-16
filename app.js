@@ -106,12 +106,88 @@ function categoryMeta(id) {
   );
 }
 
-function toast(message) {
+function toast(message, action) {
   const t = el('toast');
-  t.textContent = message;
+  t.innerHTML = '';
+  const label = document.createElement('span');
+  label.textContent = message;
+  t.appendChild(label);
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      t.classList.add('hidden');
+      clearTimeout(toast._timer);
+      action.onClick();
+    });
+    t.appendChild(btn);
+  }
   t.classList.remove('hidden');
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => t.classList.add('hidden'), 1900);
+  // An undoable action stays up longer - it is useless if it vanishes before
+  // the reader has registered what happened.
+  toast._timer = setTimeout(() => t.classList.add('hidden'), action ? 5200 : 1900);
+}
+
+/**
+ * Horizontal drag on an element, without stealing vertical scrolling.
+ *
+ * The direction is decided once per gesture from the first few pixels: if the
+ * movement is mostly vertical the gesture is released back to the scroller and
+ * never reclaimed, so a slightly slanted scroll does not turn into a swipe.
+ */
+function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45 }) {
+  let startX = 0;
+  let startY = 0;
+  let active = false;
+  let axis = null; // null until decided, then 'x' or 'y'
+
+  const point = (e) => (e.touches ? e.touches[0] : e);
+
+  const start = (e) => {
+    const p = point(e);
+    startX = p.clientX;
+    startY = p.clientY;
+    active = true;
+    axis = null;
+  };
+
+  const move = (e) => {
+    if (!active) return;
+    const p = point(e);
+    const dx = p.clientX - startX;
+    const dy = p.clientY - startY;
+    if (axis === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if (axis !== 'x') return;
+    if (e.cancelable) e.preventDefault();
+    if (onDrag) onDrag(dx);
+  };
+
+  const end = (e) => {
+    if (!active) return;
+    active = false;
+    const p = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = p.clientX - startX;
+    const wasHorizontal = axis === 'x';
+    axis = null;
+    if (onDrag) onDrag(0, true);
+    if (wasHorizontal && Math.abs(dx) >= threshold) onSwipe(dx < 0 ? 1 : -1, dx);
+    return wasHorizontal;
+  };
+
+  target.addEventListener('touchstart', start, { passive: true });
+  target.addEventListener('touchmove', move, { passive: false });
+  target.addEventListener('touchend', end);
+  target.addEventListener('touchcancel', end);
+  // Mouse equivalents, so the same gesture is reachable with a trackpad.
+  target.addEventListener('pointerdown', (e) => e.pointerType === 'mouse' && start(e));
+  target.addEventListener('pointermove', (e) => e.pointerType === 'mouse' && move(e));
+  target.addEventListener('pointerup', (e) => e.pointerType === 'mouse' && end(e));
+  target.addEventListener('pointercancel', (e) => e.pointerType === 'mouse' && end(e));
 }
 
 // ---------- Today screen ----------
@@ -134,20 +210,121 @@ function renderToday() {
     list.innerHTML = '<p class="empty-msg">Nothing logged yet.<br>Tap + to add your first expense.</p>';
     return;
   }
-  day.expenses.forEach((e) => {
-    const meta = categoryMeta(e.category);
-    const row = document.createElement('button');
-    row.className = 'expense-row';
-    row.innerHTML = `
-      <span class="row-icon">${meta.icon}</span>
-      <span class="row-body">
-        <span class="row-title">${escapeHtml(e.note || meta.label)}</span>
-        <span class="row-sub">${escapeHtml([e.note ? meta.label : '', formatTime(e.createdAt)].filter(Boolean).join(' · '))}</span>
-      </span>
-      <span class="row-amount">${formatMoney(e.amountMinor)}</span>
-    `;
-    row.addEventListener('click', () => openSheet(e.id));
-    list.appendChild(row);
+  day.expenses.forEach((e) => list.appendChild(buildExpenseRow(e)));
+}
+
+// Only one row may sit open at a time, matching how iOS lists behave.
+let openSwipeRow = null;
+function closeSwipedRow() {
+  if (!openSwipeRow) return;
+  openSwipeRow.classList.remove('revealed');
+  openSwipeRow = null;
+}
+
+const SWIPE_REVEAL = 168; // width of the two action buttons
+
+/**
+ * An expense row with iOS-style trailing actions: swipe left to reveal Edit and
+ * Delete in place. No intermediate menu - that is the convention people already
+ * have from Mail, and an extra step buys nothing.
+ */
+function buildExpenseRow(e) {
+  const meta = categoryMeta(e.category);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'row-wrap';
+
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+
+  const edit = document.createElement('button');
+  edit.className = 'row-action action-edit';
+  edit.type = 'button';
+  edit.textContent = 'Edit';
+  edit.addEventListener('click', () => {
+    closeSwipedRow();
+    openSheet(e.id);
+  });
+
+  const del = document.createElement('button');
+  del.className = 'row-action action-delete';
+  del.type = 'button';
+  del.textContent = 'Delete';
+  del.addEventListener('click', () => {
+    closeSwipedRow();
+    deleteWithUndo(e);
+  });
+
+  actions.append(edit, del);
+
+  const row = document.createElement('button');
+  row.className = 'expense-row';
+  row.type = 'button';
+  row.innerHTML = `
+    <span class="row-icon">${meta.icon}</span>
+    <span class="row-body">
+      <span class="row-title">${escapeHtml(e.note || meta.label)}</span>
+      <span class="row-sub">${escapeHtml([e.note ? meta.label : '', formatTime(e.createdAt)].filter(Boolean).join(' · '))}</span>
+    </span>
+    <span class="row-amount">${formatMoney(e.amountMinor)}</span>
+  `;
+
+  let dragged = false;
+  onHorizontalSwipe(row, {
+    threshold: 50,
+    onDrag: (dx, done) => {
+      if (done) {
+        row.style.transform = '';
+        return;
+      }
+      dragged = Math.abs(dx) > 6;
+      const base = wrap.classList.contains('revealed') ? -SWIPE_REVEAL : 0;
+      // Rubber-band past the ends so the row cannot be dragged off into space.
+      const next = Math.max(Math.min(base + dx, 0), -SWIPE_REVEAL - 24);
+      row.style.transform = `translateX(${next}px)`;
+    },
+    onSwipe: (dir) => {
+      if (dir === 1) {
+        if (openSwipeRow && openSwipeRow !== wrap) closeSwipedRow();
+        wrap.classList.add('revealed');
+        openSwipeRow = wrap;
+      } else {
+        closeSwipedRow();
+      }
+    },
+  });
+
+  // A tap that followed a drag should not also open the editor.
+  row.addEventListener('click', () => {
+    if (dragged) {
+      dragged = false;
+      return;
+    }
+    if (wrap.classList.contains('revealed')) {
+      closeSwipedRow();
+      return;
+    }
+    openSheet(e.id);
+  });
+
+  wrap.append(actions, row);
+  return wrap;
+}
+
+// Deleting from a gesture needs to be recoverable: a swipe is easy to make by
+// accident, so this offers Undo rather than blocking on a confirm dialog.
+function deleteWithUndo(expense) {
+  Store.deleteExpense(expense.id);
+  renderAll();
+  scheduleSync();
+  toast(`Deleted ${formatMoney(expense.amountMinor, { compact: true })}`, {
+    label: 'Undo',
+    onClick: () => {
+      Store.restoreExpense(expense.id);
+      renderAll();
+      scheduleSync();
+      toast('Restored');
+    },
   });
 }
 
@@ -704,6 +881,16 @@ function initCompareControls() {
   el('prevPeriod').addEventListener('click', () => movePeriod(-1));
   el('nextPeriod').addEventListener('click', () => movePeriod(1));
 
+  const chart = document.querySelector('#screen-stats .chart-card');
+  onHorizontalSwipe(chart, {
+    // Dragging left moves forward in time, matching the direction the timeline
+    // runs and how paged iOS views behave.
+    onSwipe: (dir) => movePeriod(dir),
+    onDrag: (dx, done) => {
+      chart.style.transform = done ? '' : `translateX(${Math.max(Math.min(dx * 0.35, 40), -40)}px)`;
+    },
+  });
+
   el('tableToggle').addEventListener('click', () => {
     compare.showTable = !compare.showTable;
     renderCompare();
@@ -1254,6 +1441,7 @@ function showScreen(name) {
 }
 
 function renderAll() {
+  closeSwipedRow();
   renderToday();
   if (!el('screen-stats').classList.contains('hidden')) renderCompare();
 }
@@ -1280,6 +1468,17 @@ function init() {
     state.date = e.target.value;
     syncComparePeriod();
     renderAll();
+  });
+
+  // Swipe the day card to move between days, and the chart to move between
+  // periods. Scoped to those cards rather than the whole screen so they cannot
+  // fight with the swipe-to-delete on the expense rows.
+  onHorizontalSwipe(document.querySelector('#screen-today .hero-card'), {
+    onSwipe: (dir) => {
+      state.date = shiftDate(state.date, dir);
+      syncComparePeriod();
+      renderAll();
+    },
   });
 
   initCompareControls();
@@ -1324,6 +1523,9 @@ function init() {
       toast('Copy failed — select the address by hand');
     }
   });
+
+  el('dayList').addEventListener('scroll', closeSwipedRow, { passive: true });
+  document.querySelector('#screen-today .scroll-area').addEventListener('scroll', closeSwipedRow, { passive: true });
 
   document.addEventListener('keydown', (e) => {
     if (!el('catBackdrop').classList.contains('hidden')) {

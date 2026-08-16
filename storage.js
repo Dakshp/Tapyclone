@@ -190,6 +190,18 @@ const Store = (() => {
     save(data);
   }
 
+  // Undo for a swipe-delete. Because deletion is a tombstone rather than a
+  // removal, restoring is just clearing the flag - and the fresh updatedAt means
+  // the un-delete wins over the deletion on every other device too.
+  function restoreExpense(id) {
+    const data = load();
+    const idx = data.expenses.findIndex((e) => e.id === Number(id) && e.deleted);
+    if (idx === -1) return null;
+    data.expenses[idx] = { ...data.expenses[idx], deleted: false, updatedAt: nowIso() };
+    save(data);
+    return data.expenses[idx];
+  }
+
   function getExpense(id) {
     return live(load().expenses).find((e) => e.id === Number(id)) || null;
   }
@@ -658,6 +670,7 @@ const Store = (() => {
     addExpense,
     updateExpense,
     deleteExpense,
+    restoreExpense,
     getExpense,
     getDay,
     getMonth,
