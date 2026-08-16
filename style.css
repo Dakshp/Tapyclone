@@ -178,6 +178,9 @@ button {
   color: var(--muted);
 }
 .nav-arrow:active { background: var(--primary-soft); }
+/* Greyed rather than hidden: a control that vanishes makes the header jump. */
+.nav-arrow[disabled] { opacity: .25; cursor: default; }
+.nav-arrow[disabled]:active { background: none; }
 
 /* The native date input sits invisibly over the title so tapping it opens the
    system picker - far better than building a calendar by hand. */

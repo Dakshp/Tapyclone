@@ -127,7 +127,18 @@ Direction is decided from the first few pixels of a drag: a mostly-vertical
 movement stays with the scroller and is never reclaimed, so a slightly slanted
 scroll cannot turn into a page change.
 
-Three details are what make the chart gesture feel like it is working rather
+A swipe **scrolls the chart**: the whole window slides one period and the
+selection keeps its place inside it, so the first swipe already uncovers a day
+that was not on screen. It used to move only the selection, leaving the window
+put until the selection fell off the edge — which meant six swipes that changed
+nothing but a highlight before anything appeared to move. Tapping is the
+complementary gesture and still picks a bar without moving the window: **swipe
+to travel, tap to choose**.
+
+Scrolling forward stops at the present, since nothing has happened after it. The
+forward arrow greys out there rather than staying live and doing nothing.
+
+Three further details are what make the gesture feel like it is working rather
 than like nothing happened:
 
 - The card's snap-back transition is **switched off while the finger is down**.

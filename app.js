@@ -506,14 +506,42 @@ function syncComparePeriod() {
 
 // Period keys are fixed-width and zero-padded, so plain string ordering is
 // chronological ordering for both 'YYYY-MM' and 'YYYY'.
+
+/**
+ * Scroll the chart one period, carrying the selection with it.
+ *
+ * The window used to stay put until the selection fell off its edge, which
+ * meant the first six swipes changed nothing but which bar was highlighted -
+ * so reaching the days before the leftmost one took seven swipes before
+ * anything appeared to move. Now the whole window slides on the first swipe and
+ * the selection keeps its place within it, which is what "scroll the chart"
+ * means to anyone using it.
+ *
+ * Tapping a bar still selects inside the window without moving it. That is the
+ * complementary gesture: swipe to travel, tap to pick.
+ */
 function movePeriod(delta) {
-  const span = SPAN[compare.granularity];
-  compare.period = Store.shiftPeriod(compare.period, compare.granularity, delta);
-  const windowStart = Store.shiftPeriod(compare.anchor, compare.granularity, -(span - 1));
-  if (compare.period > compare.anchor) compare.anchor = compare.period;
-  else if (compare.period < windowStart) {
-    compare.anchor = Store.shiftPeriod(compare.period, compare.granularity, span - 1);
+  const g = compare.granularity;
+  const span = SPAN[g];
+  // There is nothing after the present to scroll to, so the window stops there.
+  const latest = Store.periodOf(todayStr(), g);
+  const wantAnchor = Store.shiftPeriod(compare.anchor, g, delta);
+
+  if (wantAnchor <= latest) {
+    compare.anchor = wantAnchor;
+    compare.period = Store.shiftPeriod(compare.period, g, delta);
+  } else {
+    // Already showing up to the present. Rather than doing nothing, let the
+    // selection walk forward inside the window until it reaches the last bar.
+    compare.period = Store.shiftPeriod(compare.period, g, delta);
   }
+
+  // Whatever happened above, the selection stays inside the visible window -
+  // a highlighted bar nobody can see is worse than one that stops at the edge.
+  const windowStart = Store.shiftPeriod(compare.anchor, g, -(span - 1));
+  if (compare.period < windowStart) compare.period = windowStart;
+  if (compare.period > compare.anchor) compare.period = compare.anchor;
+
   renderCompare();
 }
 
@@ -535,7 +563,16 @@ function renderCompare() {
   chartCard.style.transform = '';
 
   el('periodTitle').textContent = periodLabel(data.period, data.granularity);
-  el('seriesHead').textContent = `${UNIT_NAME[data.granularity]} by ${UNIT_NAME[data.granularity].toLowerCase()}`;
+  const unit = UNIT_NAME[data.granularity].toLowerCase();
+  el('seriesHead').textContent = `${UNIT_NAME[data.granularity]} by ${unit}`;
+  el('chartNote').textContent = `Swipe right for earlier ${unit}s · tap a bar to pick one`;
+
+  // Nothing has happened after the present, so scrolling forward past it is a
+  // dead action. Saying so with a greyed arrow beats a control that silently
+  // does nothing when pressed.
+  const atPresent = compare.anchor >= Store.periodOf(todayStr(), data.granularity)
+    && compare.period >= compare.anchor;
+  el('nextPeriod').disabled = atPresent;
 
   const focus = data.categoryId ? categoryMeta(data.categoryId) : null;
   el('cmpLabel').textContent = focus ? `${focus.icon} ${focus.label}` : 'Total spent';
