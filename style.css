@@ -116,7 +116,7 @@
 
 /* One place to apply the material, so every glass surface stays consistent. */
 .glass,
-.app-header,
+.screen.scrolled .app-header,
 .tabbar {
   background: var(--glass-fill);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -129,7 +129,7 @@
    land and fading away underneath. Painted with a masked pseudo-element rather
    than `border`, so it can be a gradient rather than one flat colour. */
 .glass::after,
-.app-header::after,
+.screen.scrolled .app-header::after,
 .tabbar::after {
   content: '';
   position: absolute;
@@ -148,11 +148,11 @@
    iOS to reduce transparency. Both end up fully opaque rather than leaving a
    see-through panel with text showing through the labels. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .app-header, .tabbar { background: var(--surface); }
+  .glass, .screen.scrolled .app-header, .tabbar { background: var(--surface); }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .app-header, .tabbar {
+  .glass, .screen.scrolled .app-header, .tabbar {
     background: var(--surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -202,8 +202,13 @@ button {
   flex-direction: column;
 }
 
+/* At rest the bar is nothing but its buttons - no fill, no rim, no shadow. An
+   empty glass strip across the top of a screen that has a large title right
+   under it is a bar with no job. It materialises only once content is passing
+   beneath it, which is the moment it starts doing one. */
 .app-header {
   position: absolute;
+  transition: background .2s ease, box-shadow .2s ease;
   top: 0;
   left: 0;
   right: 0;
@@ -684,12 +689,15 @@ button {
 .cal-day[data-level="0"] .cal-sum,
 .cal-day[data-level="future"] .cal-sum { display: none; }
 
-/* Today is outlined, the selection is filled. Two different marks, so "where I
-   am" and "what I am looking at" never have to be told apart by shade. */
-.cal-day.is-today { box-shadow: inset 0 0 0 2px var(--muted); }
-.cal-day.is-selected {
-  box-shadow: inset 0 0 0 2.5px var(--primary);
-}
+/* Today is its date in the accent colour, the selection is a ring around the
+   cell. Two different marks, so "where I am" and "what I am looking at" never
+   compete for the same one - and today stays visible after you have picked some
+   other day, which a single shared mark could not manage. A dot would have been
+   the obvious alternative, but the cell already carries the day's total under
+   the date and there is no room below it. */
+.cal-day.is-today .cal-num { color: var(--primary); font-weight: 800; }
+.cal-day[data-level="3"].is-today .cal-num { color: var(--cal-3-ink); text-decoration: underline; }
+.cal-day.is-selected { box-shadow: inset 0 0 0 2.5px var(--primary); }
 .cal-day.is-selected .cal-num { font-weight: 750; }
 .cal-day:active { transform: scale(.92); }
 
@@ -869,8 +877,26 @@ button {
 .pager-track { display: flex; width: 300%; will-change: transform; }
 .pager-page { flex: 0 0 33.3333%; min-width: 0; }
 .chart-card { touch-action: pan-y; }
-/* Both hero cards take a horizontal drag - days on Today, periods on Compare. */
-.hero-card { touch-action: pan-y; }
+/* The screens take a horizontal drag to move between tabs, so vertical panning
+   has to stay with the scroller. */
+.screen { touch-action: pan-y; }
+
+/* Paging between tabs. Short and shallow: this runs on every tab change, and a
+   long slide turns a navigation into a wait. */
+@keyframes slide-in-right {
+  from { transform: translateX(26px); opacity: .4; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-26px); opacity: .4; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.screen.slide-from-right { animation: slide-in-right .24s cubic-bezier(.25, .9, .3, 1); }
+.screen.slide-from-left { animation: slide-in-left .24s cubic-bezier(.25, .9, .3, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.slide-from-right, .screen.slide-from-left { animation: none; }
+}
 
 .list-row {
   display: flex;

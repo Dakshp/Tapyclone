@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 
 const state = {
   date: todayStr(),
@@ -150,7 +150,11 @@ function toast(message, action) {
  * movement is mostly vertical the gesture is released back to the scroller and
  * never reclaimed, so a slightly slanted scroll does not turn into a swipe.
  */
-function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45 }) {
+function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45, owner = true }) {
+  // Marks this element as having claimed horizontal drags. The screen-level
+  // tab gesture checks for it and stands down, so swiping a chart, a calendar
+  // or an expense row never also flips to the next tab.
+  if (owner) target.dataset.swipeOwner = '';
   let startX = 0;
   let startY = 0;
   let active = false;
@@ -188,7 +192,7 @@ function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45 }) {
     const wasHorizontal = axis === 'x';
     axis = null;
     if (onDrag) onDrag(0, true);
-    if (wasHorizontal && Math.abs(dx) >= threshold) onSwipe(dx < 0 ? 1 : -1, dx);
+    if (wasHorizontal && Math.abs(dx) >= threshold) onSwipe(dx < 0 ? 1 : -1, dx, e);
     return wasHorizontal;
   };
 
@@ -849,6 +853,40 @@ function renderCalendar(data) {
     : 'Nothing spent this month';
 }
 
+/**
+ * Scroll the chart by a whole window.
+ *
+ * The strip slides a full page, so a full page of days is what has to change.
+ * Moving one day behind a full-page animation was the mismatch: the screen said
+ * "here is a different week" and the content said "the same week, shifted one".
+ * The header arrows still step a single period, so both scales are reachable -
+ * the same split the calendar already uses, where a swipe is a month and an
+ * arrow is a day.
+ */
+function scrollWindow(dir) {
+  const g = compare.granularity;
+  const span = SPAN[g];
+  const latest = Store.periodOf(todayStr(), g);
+
+  // Where the selection sits inside the window, counted back from its right
+  // edge. Keeping that offset is what stops the selection jumping to an edge.
+  let offset = 0;
+  for (let k = 0; k < span; k++) {
+    if (Store.shiftPeriod(compare.anchor, g, -k) === compare.period) { offset = k; break; }
+  }
+
+  let anchor = Store.shiftPeriod(compare.anchor, g, dir * span);
+  // Landing exactly on the present rather than refusing the move: a half window
+  // of history is still a window worth arriving at.
+  if (anchor > latest) anchor = latest;
+
+  compare.anchor = anchor;
+  let period = Store.shiftPeriod(anchor, g, -offset);
+  if (period > latest) period = latest;
+  compare.period = period;
+  renderCompare();
+}
+
 function renderCompare() {
   populateFocusSelect();
   const data = Store.getComparison({
@@ -972,6 +1010,11 @@ function buildChartSvg(data, interactive) {
       const h = s.totalMinor > 0 ? Math.max((s.totalMinor / max) * plotH, 3) : 0;
       const y = baseY - h;
       const selected = s.period === data.period;
+      // "Where I am" and "what I am looking at" are different questions, so they
+      // get different marks: the selection is the coloured bar, today is a dot
+      // under its label. Using one mark for both meant that as soon as you
+      // picked another day, today vanished from the chart entirely.
+      const isNow = s.period === Store.periodOf(todayStr(), data.granularity);
       const cx = x + barW / 2;
       const [line1, line2] = axisLabel(s.period, data.granularity);
       // The value sits in the reserved top band rather than riding the bar top,
@@ -990,7 +1033,8 @@ function buildChartSvg(data, interactive) {
               font-weight="${selected ? '700' : '500'}">${line1}</text>
         <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="12.5"
               fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
-              font-weight="${selected ? '700' : '400'}">${line2}</text>
+              font-weight="${selected ? '700' : isNow ? '650' : '400'}">${line2}</text>
+        ${isNow ? `<circle cx="${cx.toFixed(1)}" cy="${H - 2}" r="2.6" fill="var(--primary)"></circle>` : ''}
         <rect class="hit" data-period="${s.period}" x="${x - gap / 2}" y="${pad.top}"
               width="${barW + gap}" height="${plotH + pad.bottom}" fill="transparent"
               ${interactive ? 'tabindex="0" role="button"' : ''}></rect>
@@ -1038,16 +1082,22 @@ function buildChartSvg(data, interactive) {
 function renderPeriodChart(data) {
   const g = data.granularity;
   const latest = Store.periodOf(todayStr(), g);
+  const span = SPAN[g];
   fillPager(el('chartPager'), (offset) => {
     if (offset === 0) return buildChartSvg(data, true);
-    const anchor = Store.shiftPeriod(compare.anchor, g, offset);
-    if (anchor > latest) return null;
+    // A whole window away, matching where a swipe actually lands - a neighbour
+    // showing the next single day would be a preview of somewhere else.
+    let anchor = Store.shiftPeriod(compare.anchor, g, offset * span);
+    if (offset > 0 && anchor > latest) {
+      if (compare.anchor >= latest) return null;
+      anchor = latest;
+    }
     return buildChartSvg(Store.getComparison({
       granularity: g,
-      period: Store.shiftPeriod(compare.period, g, offset),
+      period: anchor,
       endPeriod: anchor,
       categoryId: compare.categoryId,
-      span: SPAN[g],
+      span,
     }), false);
   });
 }
@@ -1376,7 +1426,7 @@ function initCompareControls() {
   // The chart scrolls by one period; the calendar by a whole month, since a
   // month is what it shows. Both move their own contents rather than the card.
   attachPager(el('chartPager'), {
-    step: movePeriod,
+    step: scrollWindow,
     canStep: canMovePeriod,
     on: document.querySelector('#screen-stats .chart-card'),
   });
@@ -1385,19 +1435,6 @@ function initCompareControls() {
     canStep: (dir) => dir < 0 || monthOf(compare.period) < monthOf(todayStr()),
     on: el('calendarCard'),
   });
-
-  // The headline above is about the same period, so a swipe that lands slightly
-  // high is not a miss. It has nothing of its own to slide, so it just commits.
-  const hero = document.querySelector('#screen-stats .hero-card');
-  onHorizontalSwipe(hero, {
-    threshold: 32,
-    onSwipe: (dir) => {
-      lastChartSwipeAt = Date.now();
-      hidePeriodTip();
-      if (canMovePeriod(dir)) movePeriod(dir);
-    },
-  });
-  hero.addEventListener('wheel', (e) => onWheelGesture(e, movePeriod), { passive: false });
 
   el('tableToggle').addEventListener('click', () => {
     compare.showTable = !compare.showTable;
@@ -2011,12 +2048,39 @@ function clearEverything() {
 
 // ---------- Navigation ----------
 
-function showScreen(name) {
+// Tab order, left to right. The swipe walks this list; the tab bar shows it.
+const SCREENS = ['stats', 'today', 'settings'];
+
+function showScreen(name, direction) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
-  el(`screen-${name}`).classList.remove('hidden');
+  const next = el(`screen-${name}`);
+  next.classList.remove('hidden');
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.screen === name));
   if (name === 'stats') renderCompare();
   if (name === 'settings') renderSettings();
+
+  // Slide in from the side the gesture came from, so the tabs feel like a strip
+  // you are moving along rather than three unrelated screens being swapped.
+  if (direction) {
+    next.classList.remove('slide-from-left', 'slide-from-right');
+    // Reading offsetWidth forces the class removal to take effect before the new
+    // one is added; without it the animation does not restart on a fast repeat.
+    void next.offsetWidth;
+    next.classList.add(direction > 0 ? 'slide-from-right' : 'slide-from-left');
+  }
+}
+
+function currentScreen() {
+  const open = [...document.querySelectorAll('.screen')].find((s) => !s.classList.contains('hidden'));
+  return open ? open.id.replace('screen-', '') : 'today';
+}
+
+function stepScreen(dir) {
+  const i = SCREENS.indexOf(currentScreen());
+  const next = SCREENS[i + dir];
+  if (!next) return;
+  closeSwipedRow();
+  showScreen(next, dir);
 }
 
 function renderAll() {
@@ -2041,6 +2105,22 @@ function watchScroll() {
 
 function init() {
   watchScroll();
+
+  // Swipe between tabs, the way a photo feed pages between them. Attached to
+  // each screen, but standing down whenever the drag started on something that
+  // owns horizontal gestures of its own - the chart, the calendar, the headline
+  // cards, an expense row - so the two never fight over one finger.
+  document.querySelectorAll('.screen').forEach((screen) => {
+    onHorizontalSwipe(screen, {
+      owner: false,
+      threshold: 55,
+      onSwipe: (dir, dx, event) => {
+        const from = event && event.target;
+        if (from && from.closest && from.closest('[data-swipe-owner]')) return;
+        stepScreen(dir);
+      },
+    });
+  });
   // The inline script in index.html has already done this before the first
   // paint. Repeating it here covers the case where storage was unreadable then
   // but is fine now - a migration from the old key, most likely.
@@ -2068,16 +2148,13 @@ function init() {
   });
 
   // Swipe the day card to move between days, and the chart to move between
-  // periods. Scoped to those cards rather than the whole screen so they cannot
-  // fight with the swipe-to-delete on the expense rows.
-  onHorizontalSwipe(document.querySelector('#screen-today .hero-card'), {
-    onSwipe: (dir) => {
-      state.date = shiftDate(state.date, dir);
-      syncComparePeriod();
-      renderAll();
-    },
-  });
-
+  // The headline cards used to take a horizontal drag too - days on Today,
+  // periods on Compare. Both were given up so that swiping between tabs has
+  // somewhere to land: with the hero, the chart AND every row claiming the
+  // gesture there was nowhere left on the screen to start one. Exactly two
+  // things own a horizontal drag now - the chart/calendar strip, and an expense
+  // row - and both are things that visibly move under the finger. Days and
+  // periods still step with the arrows beside their titles.
   initCompareControls();
 
   el('openAdd').addEventListener('click', () => openSheet(null));

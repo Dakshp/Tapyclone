@@ -116,15 +116,33 @@ the breakdown rather than silently dropped.
 
 ## Gestures
 
-- **Swipe the day card** left or right to move between days; on the Compare
-  screen **swipe the chart or the headline above it** to move between periods,
-  at whichever zoom level is selected. Two targets rather than one, because a
-  single card is easy to miss on a phone and a swipe that lands slightly high
-  is still clearly about the same period. Dragging left moves forward in time,
-  the direction the timeline runs. The arrows stay, because a gesture is
-  invisible and a first-time user needs something to see.
+- **Swipe anywhere to move between tabs** — Stats, Today, Settings — the way a
+  photo feed pages between them.
+- **Swipe the chart or the calendar** to travel through time: a whole window of
+  the chart, a whole month of the calendar. Dragging left moves forward in time,
+  the direction the timeline runs.
 - **Swipe an expense left** to reveal **Edit** and **Delete** in place — the
   same pattern as Mail, with no intermediate menu to step through.
+
+Exactly **two** things own a horizontal drag: the chart/calendar strip and an
+expense row. Everything else on a screen belongs to the tab gesture. That rule
+cost a feature — the headline cards used to take a drag too, days on Today and
+periods on Compare — but with the hero, the chart *and* every row claiming the
+gesture there was nowhere left on a screen to start a tab swipe from. Days and
+periods still step with the arrows beside their titles, which is the fine
+control the swipe was never good at anyway.
+
+Both survivors are things that visibly move under the finger, which is the test:
+if a drag claims your gesture, it owes you something moving.
+
+The tab gesture stands down whenever the drag started inside one of those two,
+so a row swipe and a chart swipe never also flip the tab.
+
+**A swipe moves a whole window, not one period.** The strip slides a full page,
+so a full page of content has to change; moving one day behind a full-page
+animation was a mismatch — the screen said "here is a different week" while the
+content said "the same week, shifted one". The two windows are contiguous: no
+repeated column, no gap.
 
 Direction is decided from the first few pixels of a drag: a mostly-vertical
 movement stays with the scroller and is never reclaimed, so a slightly slanted
@@ -213,6 +231,10 @@ off rendered pixels, not judged by eye.
   loudest tell, and fixing it changed more than anything else here.
 - **No drop shadows.** Surfaces are separated by colour and a hairline.
   Elevation is Google's metaphor; iOS does not use it for content.
+- **The navigation bar is nothing until you scroll.** No fill, no rim, no
+  shadow — just its buttons. An empty glass strip across the top of a screen
+  that has a large title right under it is a bar with no job; it materialises
+  only once content is passing beneath it, which is the moment it gets one.
 - **True black in dark mode.** `#000`, not a dark grey. On the OLED panel in
   every iPhone since the X those pixels are simply off, which is why Apple's dark
   mode goes there — and why `#0b0b13` reads as a washed-out imitation beside it.
@@ -327,8 +349,11 @@ empty ones, and the scale is written underneath in words — the wording flips
 between "darker" and "brighter" with the theme, because the ramp runs towards
 deep indigo on a light page and pale indigo on a dark one.
 
-Today is **outlined** and the selection is **filled**: two different marks, so
-"where I am" and "what I am looking at" never have to be told apart by shade.
+Today is its date **in the accent colour**; the selection is a **ring** around
+the cell. On the chart, the selection is the coloured bar and today is a **dot
+under its label**. Two different marks in both, because "where I am" and "what I
+am looking at" are different questions — with a single shared mark, today
+vanished the moment you picked any other day.
 Days that have not happened are greyed and cannot be selected — a day with no
 spending yet is not a day with nothing spent.
 
