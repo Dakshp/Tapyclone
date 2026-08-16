@@ -127,6 +127,15 @@ Direction is decided from the first few pixels of a drag: a mostly-vertical
 movement stays with the scroller and is never reclaimed, so a slightly slanted
 scroll cannot turn into a page change.
 
+On a trackpad the same gesture is not a drag at all. Two fingers never move the
+pointer, so none of that handling runs; the browser reads it as horizontal
+scrolling, finds nothing to scroll, and gives it to its own back/forward
+navigation — which slides the entire page sideways. The chart therefore also
+listens for `wheel` and claims horizontal ones, which stops the page sliding and
+scrolls the chart instead. One gesture moves one period however hard it is
+thrown: a trackpad keeps sending deltas for about a second after the fingers
+lift, and letting distance decide would hand control to that momentum tail.
+
 A swipe **scrolls the chart**: the whole window slides one period and the
 selection keeps its place inside it, so the first swipe already uncovers a day
 that was not on screen. It used to move only the selection, leaving the window
@@ -187,11 +196,23 @@ reads as raw background showing through a hole, a pill reads as a control. Each
 carries an icon *and* its word: Delete is destructive enough that it should never
 rest on a glyph alone.
 
+Light mode is where glass is hardest to see: a pale fill over a pale page reads
+as a solid white slab whatever its alpha claims. So the fill is thin (46%) and
+the blur is heavy — **the blur, not the fill, is what stops the text behind from
+being legible through the panel**.
+
+Thinning the fill puts more of the content behind into the panel, which costs
+contrast for the labels on top of it. Secondary text on glass therefore has its
+own token, darker than `--muted` on light and lighter on dark, set so the tab
+labels stay above 4.5:1 with a white expense row blurred behind them. Measured
+off rendered pixels, not judged by eye.
+
 The important constraint is that **the blur is an enhancement, never what keeps
 text readable**. iOS's *Reduce Transparency* setting switches it off, and some
-engines parse `backdrop-filter` without compositing it. So the fills are opaque
-enough to stand alone, and `prefers-reduced-transparency` drops to fully solid
-surfaces.
+engines parse `backdrop-filter` without compositing it. Both paths fall back to
+fully solid surfaces rather than leaving see-through panels with text showing
+through the labels — so if the chrome looks solid on a device, check that
+setting first.
 
 ### How the theme is applied
 

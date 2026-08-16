@@ -968,6 +968,48 @@ function populateFocusSelect() {
   }
 }
 
+/**
+ * The same gesture, arriving as a wheel event.
+ *
+ * A two-finger swipe on a trackpad is not a drag - the pointer never moves, so
+ * none of the touch or pointer handling above ever runs. The browser reads it
+ * as horizontal scrolling and, finding nothing to scroll, hands it to its own
+ * back/forward navigation, which slides the entire page sideways. That is why
+ * the gesture appeared to move the whole app instead of the chart.
+ *
+ * Claiming the event fixes both halves: the page stops sliding, and the chart
+ * scrolls the way it does under a finger.
+ */
+let wheelDx = 0;
+let wheelIdle = null;
+let wheelSpent = false;
+function onChartWheel(e) {
+  // A mostly-vertical wheel is the page being scrolled; leave it alone.
+  if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+
+  // A flick arrives as a burst of small deltas, and a trackpad keeps sending
+  // them after the fingers lift. The burst is over only once they stop coming.
+  clearTimeout(wheelIdle);
+  wheelIdle = setTimeout(() => { wheelDx = 0; wheelSpent = false; }, 240);
+
+  // One gesture moves one period, however hard it was thrown. Letting the
+  // distance decide would hand control to the momentum tail, which can run for
+  // a second after the fingers are gone and would scroll off into last year.
+  if (wheelSpent) return;
+
+  wheelDx += e.deltaX;
+  if (Math.abs(wheelDx) < 60) return;
+
+  // Positive deltaX means the content is being pushed left, uncovering what
+  // lies to the right - later periods. Same mapping as dragging with a finger.
+  wheelSpent = true;
+  lastChartSwipeAt = Date.now();
+  hidePeriodTip();
+  movePeriod(wheelDx > 0 ? 1 : -1);
+  wheelDx = 0;
+}
+
 function initCompareControls() {
   const select = el('focusCategory');
   select.addEventListener('change', () => {
@@ -1029,6 +1071,7 @@ function initCompareControls() {
     });
     // Same reason: end the gesture with no tooltip left hanging.
     target.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
+    target.addEventListener('wheel', onChartWheel, { passive: false });
   });
 
   el('tableToggle').addEventListener('click', () => {

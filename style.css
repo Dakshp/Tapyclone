@@ -23,12 +23,20 @@
      the blur does the work of keeping what is behind it unreadable, and the rim
      is a bright gradient rather than a flat border - that highlight is what
      makes it look like a lens catching light instead of tinted plastic. */
-  --glass-fill: rgba(255, 255, 255, .68);
+  /* Light mode is where glass is hardest to see: a pale fill over a pale page
+     looks like a solid white slab whatever the alpha claims. So the fill is
+     genuinely thin and the blur is heavy - the blur, not the fill, is what stops
+     the text behind from being legible through the panel. */
+  --glass-fill: rgba(255, 255, 255, .46);
   --glass-rim-top: rgba(255, 255, 255, .95);
   --glass-rim-bottom: rgba(255, 255, 255, .18);
   --glass-hairline: rgba(255, 255, 255, .45);
   --glass-lift: 0 14px 40px rgba(24, 24, 52, .16), 0 3px 10px rgba(24, 24, 52, .08);
-  --glass-blur: saturate(200%) blur(28px);
+  --glass-blur: saturate(215%) blur(34px);
+  /* Secondary text sitting ON glass, which is a lighter and less predictable
+     ground than a solid card. Darker than --muted by exactly enough to keep the
+     tab labels above 4.5:1 with a white expense row blurred behind them. */
+  --glass-ink-muted: #5e5e6c;
 }
 
 /* Dark is driven by an attribute on <html>, not by the media query directly.
@@ -52,7 +60,8 @@
   /* On dark the glass must be LIGHTER than the page behind it, the way frosted
      glass catches light. Matching the background is what made it read as a
      flat slab. */
-  --glass-fill: rgba(78, 78, 100, .55);
+  --glass-fill: rgba(84, 84, 108, .44);
+  --glass-ink-muted: #b4b4c4;
   --glass-rim-top: rgba(255, 255, 255, .38);
   --glass-rim-bottom: rgba(255, 255, 255, .04);
   --glass-hairline: rgba(255, 255, 255, .14);
@@ -199,6 +208,9 @@ button {
 .scroll-area {
   flex: 1;
   overflow-y: auto;
+  /* Stops a sideways trackpad flick that lands outside the chart from being
+     handed to the browser's back/forward swipe, which slides the whole page. */
+  overscroll-behavior-x: none;
   -webkit-overflow-scrolling: touch;
   /* Top padding clears the floating header, bottom padding the tab bar and the
      add button, so nothing is ever stranded underneath them - while the content
@@ -758,7 +770,7 @@ button {
   gap: 3px;
   font-size: 11px;
   font-weight: 560;
-  color: var(--muted);
+  color: var(--glass-ink-muted);
   transition: background .18s ease, color .18s ease;
 }
 /* The selected tab gets its own lighter pane inside the capsule, the way an
