@@ -30,6 +30,10 @@ const Store = (() => {
     currency: 'INR',
     locale: 'en-IN',
     monthlyBudgetMinor: 3000000, // 30,000.00
+    // Sync is off until a Web App URL and token are entered in Settings.
+    syncUrl: '',
+    syncToken: '',
+    lastSyncAt: '',
   };
 
   function freshData() {
@@ -58,14 +62,27 @@ const Store = (() => {
 
   // Every read path funnels through here, so a bad or legacy record can never
   // reach the arithmetic below as a string (string "+" concatenates digits).
+  // Local ids are per-device counters, so two phones would both mint id 1. Sync
+  // keys off `uid` instead, which is globally unique.
+  function newUid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return `x-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function nowIso() {
+    return new Date().toISOString();
+  }
+
   function normalizeExpense(e) {
     const amountMinor = Number.isInteger(e.amountMinor)
       ? e.amountMinor
       : e.amountMinor != null
         ? Math.round(Number(e.amountMinor) || 0)
         : toMinor(e.amount);
+    const createdAt = typeof e.createdAt === 'string' ? e.createdAt : '';
     return {
       id: Number(e.id) || 0,
+      uid: typeof e.uid === 'string' && e.uid ? e.uid : newUid(),
       date: typeof e.date === 'string' ? e.date : '',
       amountMinor: Math.max(0, amountMinor),
       // The id is kept verbatim even if no such category exists right now -
@@ -73,8 +90,16 @@ const Store = (() => {
       // getCategoriesForDisplay() surfaces any such orphan instead.
       category: typeof e.category === 'string' && e.category.trim() ? e.category.trim() : 'other',
       note: typeof e.note === 'string' ? e.note : '',
-      createdAt: typeof e.createdAt === 'string' ? e.createdAt : '',
+      createdAt,
+      // Deletes are kept as tombstones so they can propagate to other devices;
+      // every read path filters them out.
+      deleted: e.deleted === true,
+      updatedAt: typeof e.updatedAt === 'string' && e.updatedAt ? e.updatedAt : createdAt || nowIso(),
     };
+  }
+
+  function live(list) {
+    return list.filter((e) => !e.deleted);
   }
 
   function load() {
@@ -101,15 +126,18 @@ const Store = (() => {
 
   // ---------- Expenses ----------
 
-  function addExpense({ date, amountMinor, category, note }) {
+  function addExpense({ date, amountMinor, category, note, uid }) {
     const data = load();
+    const stamp = nowIso();
     const record = normalizeExpense({
       id: data.nextId++,
+      uid: uid || newUid(),
       date,
       amountMinor,
       category,
       note,
-      createdAt: new Date().toISOString(),
+      createdAt: stamp,
+      updatedAt: stamp,
     });
     if (record.amountMinor <= 0) throw new Error('Enter an amount greater than zero.');
     data.expenses.push(record);
@@ -119,23 +147,33 @@ const Store = (() => {
 
   function updateExpense(id, patch) {
     const data = load();
-    const idx = data.expenses.findIndex((e) => e.id === Number(id));
+    const idx = data.expenses.findIndex((e) => e.id === Number(id) && !e.deleted);
     if (idx === -1) return null;
-    const merged = normalizeExpense({ ...data.expenses[idx], ...patch, id: data.expenses[idx].id });
+    const merged = normalizeExpense({
+      ...data.expenses[idx],
+      ...patch,
+      id: data.expenses[idx].id,
+      uid: data.expenses[idx].uid,
+      updatedAt: nowIso(),
+    });
     if (merged.amountMinor <= 0) throw new Error('Enter an amount greater than zero.');
     data.expenses[idx] = merged;
     save(data);
     return merged;
   }
 
+  // Soft delete: the row stays as a tombstone so other devices learn about the
+  // deletion instead of pushing their copy back.
   function deleteExpense(id) {
     const data = load();
-    data.expenses = data.expenses.filter((e) => e.id !== Number(id));
+    const idx = data.expenses.findIndex((e) => e.id === Number(id) && !e.deleted);
+    if (idx === -1) return;
+    data.expenses[idx] = { ...data.expenses[idx], deleted: true, updatedAt: nowIso() };
     save(data);
   }
 
   function getExpense(id) {
-    return load().expenses.find((e) => e.id === Number(id)) || null;
+    return live(load().expenses).find((e) => e.id === Number(id)) || null;
   }
 
   function sumMinor(list) {
@@ -143,15 +181,15 @@ const Store = (() => {
   }
 
   function getDay(date) {
-    const expenses = load()
-      .expenses.filter((e) => e.date === date)
+    const expenses = live(load().expenses)
+      .filter((e) => e.date === date)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return { date, expenses, totalMinor: sumMinor(expenses) };
   }
 
   // month is a 'YYYY-MM' prefix.
   function getMonth(month) {
-    const expenses = load().expenses.filter((e) => e.date.slice(0, 7) === month);
+    const expenses = live(load().expenses).filter((e) => e.date.slice(0, 7) === month);
     const byCategory = getCategoriesForDisplay().map((c) => {
       const items = expenses.filter((e) => e.category === c.id);
       return { ...c, totalMinor: sumMinor(items), count: items.length };
@@ -171,7 +209,7 @@ const Store = (() => {
 
   function getDailyTotals(days, endDate) {
     const byDate = {};
-    for (const e of load().expenses) {
+    for (const e of live(load().expenses)) {
       byDate[e.date] = (byDate[e.date] || 0) + (Number(e.amountMinor) || 0);
     }
     // Pure UTC calendar arithmetic so day-stepping never shifts across a
@@ -189,7 +227,7 @@ const Store = (() => {
 
   function getRecentDays(limit) {
     const byDate = {};
-    for (const e of load().expenses) {
+    for (const e of live(load().expenses)) {
       if (!byDate[e.date]) byDate[e.date] = { date: e.date, totalMinor: 0, count: 0 };
       byDate[e.date].totalMinor += Number(e.amountMinor) || 0;
       byDate[e.date].count += 1;
@@ -217,7 +255,7 @@ const Store = (() => {
     const data = load();
     const out = data.categories.slice();
     const seen = new Set(out.map((c) => c.id));
-    for (const e of data.expenses) {
+    for (const e of live(data.expenses)) {
       if (!seen.has(e.category)) {
         seen.add(e.category);
         out.push({ id: e.category, label: e.category, icon: ORPHAN_ICON, hidden: true, orphan: true });
@@ -227,7 +265,7 @@ const Store = (() => {
   }
 
   function categoryUsage(id) {
-    return load().expenses.filter((e) => e.category === id).length;
+    return live(load().expenses).filter((e) => e.category === id).length;
   }
 
   function slugify(label) {
@@ -275,7 +313,7 @@ const Store = (() => {
   function removeCategory(id) {
     const data = load();
     if (data.categories.length <= 1) throw new Error('Keep at least one category.');
-    if (data.expenses.some((e) => e.category === id)) {
+    if (live(data.expenses).some((e) => e.category === id)) {
       throw new Error('This category has expenses. Hide it, or merge it into another one.');
     }
     data.categories = data.categories.filter((c) => c.id !== id);
@@ -359,7 +397,7 @@ const Store = (() => {
    * two never disagree.
    */
   function getComparison({ granularity = 'month', period, endPeriod, categoryId = null, span = 12 }) {
-    const expenses = load().expenses;
+    const expenses = live(load().expenses);
     const idx = buildIndex(expenses, granularity);
 
     const valueAt = (p) => {
@@ -444,10 +482,14 @@ const Store = (() => {
 
   function normalizeSettings(s) {
     const budget = Math.round(Number(s.monthlyBudgetMinor) || 0);
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
     return {
       currency: typeof s.currency === 'string' && s.currency ? s.currency : DEFAULT_SETTINGS.currency,
       locale: typeof s.locale === 'string' && s.locale ? s.locale : DEFAULT_SETTINGS.locale,
       monthlyBudgetMinor: Math.max(0, budget),
+      syncUrl: str(s.syncUrl),
+      syncToken: str(s.syncToken),
+      lastSyncAt: str(s.lastSyncAt),
     };
   }
 
@@ -458,6 +500,66 @@ const Store = (() => {
   function setSettings(patch) {
     const data = load();
     data.settings = normalizeSettings({ ...data.settings, ...patch });
+    save(data);
+    return data.settings;
+  }
+
+  // ---------- Sync ----------
+
+  // Everything changed since the last successful sync, tombstones included.
+  function getPendingExpenses() {
+    const data = load();
+    const since = data.settings.lastSyncAt;
+    if (!since) return data.expenses.slice();
+    return data.expenses.filter((e) => String(e.updatedAt) > String(since));
+  }
+
+  // A shortcut sends a category by name ("Food & Drink"); the app stores ids.
+  // Match either, and keep the raw value when nothing matches so the record is
+  // surfaced as an orphan rather than silently refiled.
+  function resolveCategory(value, categories) {
+    const needle = String(value || '').trim().toLowerCase();
+    if (!needle) return 'other';
+    const hit = categories.find(
+      (c) => c.id.toLowerCase() === needle || c.label.toLowerCase() === needle
+    );
+    return hit ? hit.id : String(value).trim();
+  }
+
+  /**
+   * Applies records from the server, newest-write-wins per uid. Returns how
+   * many were actually applied, so "nothing changed" can be reported honestly.
+   */
+  function mergeRemote(incoming) {
+    const data = load();
+    const byUid = new Map(data.expenses.map((e) => [e.uid, e]));
+    let applied = 0;
+
+    for (const raw of incoming || []) {
+      const inc = normalizeExpense(raw);
+      inc.category = resolveCategory(inc.category, data.categories);
+      if (!inc.uid || !inc.date) continue;
+
+      const cur = byUid.get(inc.uid);
+      if (!cur) {
+        inc.id = data.nextId++;
+        data.expenses.push(inc);
+        byUid.set(inc.uid, inc);
+        applied++;
+      } else if (String(inc.updatedAt) > String(cur.updatedAt)) {
+        const merged = { ...inc, id: cur.id };
+        data.expenses[data.expenses.findIndex((e) => e.uid === inc.uid)] = merged;
+        byUid.set(inc.uid, merged);
+        applied++;
+      }
+    }
+    save(data);
+    return applied;
+  }
+
+  function setLastSyncAt(iso) {
+    const data = load();
+    data.settings = normalizeSettings({ ...data.settings, lastSyncAt: String(iso || '') });
     save(data);
     return data.settings;
   }
@@ -486,7 +588,7 @@ const Store = (() => {
     getCategoriesForDisplay().forEach((c) => (labels[c.id] = c.label));
     const cell = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
     const rows = [['Date', 'Category', 'Note', 'Amount', 'Currency']];
-    data.expenses
+    live(data.expenses)
       .slice()
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))
       .forEach((e) => {
@@ -547,6 +649,9 @@ const Store = (() => {
     getComparison,
     getSettings,
     setSettings,
+    getPendingExpenses,
+    mergeRemote,
+    setLastSyncAt,
     exportData,
     importData,
     clearAll,

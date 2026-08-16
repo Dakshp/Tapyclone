@@ -140,17 +140,33 @@
       <div class="section-head"><h2>Categories</h2></div>
       <div class="card" id="categoryManager"></div>
 
-      <div class="section-head"><h2>Quick add shortcut</h2></div>
+      <div class="section-head"><h2>Sync to a Google Sheet</h2></div>
       <div class="card">
         <p class="hint">
-          A shortcut can ask for the amount, category and note, then log the expense on its own —
-          Tappy flashes up, saves it and shows a confirmation, with nothing to tap.
+          Without this, expenses live only in this browser on this phone. Connect a Google Sheet
+          and they are stored there instead — shared across your devices, readable as a normal
+          spreadsheet, and reachable by a shortcut that never has to open the app.
+          Setup instructions are in <code>server/README.md</code> in the project.
         </p>
+        <label class="field">
+          <span>Web app URL</span>
+          <input type="url" id="setSyncUrl" placeholder="https://script.google.com/…/exec" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>Token</span>
+          <input type="text" id="setSyncToken" placeholder="the token you set in the script" autocomplete="off" spellcheck="false">
+        </label>
+        <button class="btn-secondary" id="syncTestBtn">Check connection</button>
+        <button class="btn-secondary" id="syncNowBtn">Sync now</button>
+        <p class="hint" id="syncStatus"></p>
+      </div>
+
+      <div class="section-head"><h2>Quick add shortcut</h2></div>
+      <div class="card" id="shortcutCard">
+        <p class="hint" id="shortcutIntro"></p>
         <code class="quick-url" id="quickUrl"></code>
         <button class="btn-secondary" id="copyQuickUrl">Copy address</button>
-        <p class="hint">
-          <strong>Build it in the Shortcuts app:</strong>
-        </p>
+        <p class="hint"><strong>Build it in the Shortcuts app:</strong></p>
         <ol class="hint steps">
           <li><strong>Ask for Input</strong> — Number — “How much did you spend?”</li>
           <li><strong>Choose from Menu</strong> — one item per category, named exactly as in
@@ -159,13 +175,11 @@
           <li><strong>Text</strong> — paste the address above, replacing
             <code>AMOUNT</code>, <code>CATEGORY</code> and <code>NOTE</code> with those three
             answers</li>
-          <li><strong>Open URLs</strong> — pass it that Text</li>
+          <li id="shortcutFinalStep"></li>
         </ol>
         <p class="hint">
           Then in iOS&nbsp;Settings assign it to <strong>Back&nbsp;Tap</strong> or the
-          <strong>Lock&nbsp;Screen</strong>, or just say “Hey Siri, <em>shortcut name</em>”.
-          Drop <code>&amp;save=1</code> from the address if you would rather check the entry
-          before it is saved.
+          <strong>Lock&nbsp;Screen</strong>, or say “Hey Siri, <em>shortcut name</em>”.
         </p>
       </div>
 
@@ -260,6 +274,7 @@
 <div class="toast hidden" id="toast"></div>
 
 <script src="storage.js"></script>
+<script src="sync.js"></script>
 <script src="app.js"></script>
 <script>
   // The service worker only makes sense over http(s); skip it on file://.

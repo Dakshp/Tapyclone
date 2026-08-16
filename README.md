@@ -3,9 +3,14 @@
 A fast daily expense tracker. Log a spend in about three taps, see where the
 money went, and stay inside a monthly budget.
 
-It is a Progressive Web App: plain HTML, CSS and JavaScript with no build step,
-no framework and no backend. Everything you log stays in your browser's
-localStorage on your own device.
+It is a Progressive Web App: plain HTML, CSS and JavaScript with no build step
+and no framework. Out of the box everything you log stays in your browser's
+storage on your own device.
+
+Optionally it syncs to **a Google Sheet you own** (see `server/`), which gets
+you three things: the data lives somewhere other than one phone, every device
+shows the same expenses, and an iOS Shortcut can log one **without opening the
+app at all**.
 
 ## Publishing it
 
@@ -54,6 +59,29 @@ Once installed it works with no connection at all.
   Every plotted value is also available as a plain table.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
+
+## Sync
+
+Off by default. `server/README.md` walks through connecting a Google Sheet —
+about ten minutes, entirely in the browser.
+
+How it works, briefly:
+
+- Each expense carries a globally unique `uid` and an `updatedAt`. Sync matches
+  on the uid, and the newer `updatedAt` wins, on both the phone and the server.
+- **Deleting keeps a tombstone** rather than dropping the row. Without one, a
+  second device that had not yet heard about the deletion would simply upload
+  its copy again and the expense would reappear.
+- One request does both directions: a push carries everything changed since the
+  last sync, and the reply carries everything this device has not seen.
+- The watermark only advances after the incoming batch has been stored, so an
+  interruption means re-syncing rather than silently skipping records.
+- A failed sync never touches local data — the app keeps working offline and
+  catches up later.
+
+Security is a shared token, not real accounts: anyone with both the URL and the
+token can read and write. That is proportionate for a personal sheet, but it is
+not multi-user auth, so the token should be long and random.
 
 ## Retiring a category
 

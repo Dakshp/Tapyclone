@@ -799,6 +799,7 @@ function saveSheet() {
     }
     closeSheet();
     renderAll();
+    scheduleSync();
   } catch (err) {
     toast(err.message);
   }
@@ -810,6 +811,7 @@ function deleteFromSheet() {
   Store.deleteExpense(state.editingId);
   closeSheet();
   renderAll();
+  scheduleSync();
   toast('Expense deleted');
 }
 
@@ -1006,9 +1008,92 @@ function renderSettings() {
   el('setBudget').value = s.monthlyBudgetMinor
     ? String(s.monthlyBudgetMinor / Store.MINOR_PER_MAJOR)
     : '';
-  el('quickUrl').textContent =
-    `${location.origin}${location.pathname}?amount=AMOUNT&category=CATEGORY&note=NOTE&save=1`;
+  el('setSyncUrl').value = s.syncUrl;
+  el('setSyncToken').value = s.syncToken;
+  renderSyncStatus();
+  renderShortcutHelp();
   renderCategoryManager();
+}
+
+function renderSyncStatus(message) {
+  const s = Store.getSettings();
+  const box = el('syncStatus');
+  if (message) {
+    box.textContent = message;
+    return;
+  }
+  if (!Sync.isConfigured()) {
+    box.textContent = 'Not connected — expenses stay on this device only.';
+    return;
+  }
+  box.textContent = s.lastSyncAt
+    ? `Connected. Last synced ${new Date(s.lastSyncAt).toLocaleString()}.`
+    : 'Connected. Not synced yet — tap “Sync now”.';
+}
+
+// Once a sheet is connected the shortcut can post straight to it, which is the
+// only way to log without the app opening at all.
+function renderShortcutHelp() {
+  const s = Store.getSettings();
+  const connected = Sync.isConfigured();
+  el('shortcutIntro').textContent = connected
+    ? 'Your shortcut can write straight to the sheet — nothing opens, nothing flashes up. Tappy picks the expense up next time it syncs.'
+    : 'Right now a shortcut has to open Tappy for a moment to save. Connect a Google Sheet above and it can save silently in the background instead.';
+  el('quickUrl').textContent = connected
+    ? `${s.syncUrl}?action=add&token=${s.syncToken}&amount=AMOUNT&category=CATEGORY&note=NOTE`
+    : `${location.origin}${location.pathname}?amount=AMOUNT&category=CATEGORY&note=NOTE&save=1`;
+  el('shortcutFinalStep').innerHTML = connected
+    ? '<strong>Get Contents of URL</strong> — pass it that Text. This runs in the background; nothing appears on screen.'
+    : '<strong>Open URLs</strong> — pass it that Text.';
+}
+
+async function saveSyncSettings() {
+  Store.setSettings({
+    syncUrl: el('setSyncUrl').value.trim(),
+    syncToken: el('setSyncToken').value.trim(),
+  });
+  renderSyncStatus();
+  renderShortcutHelp();
+}
+
+async function checkSyncConnection() {
+  const url = el('setSyncUrl').value.trim();
+  const token = el('setSyncToken').value.trim();
+  if (!url || !token) {
+    renderSyncStatus('Enter both the web app URL and the token first.');
+    return;
+  }
+  renderSyncStatus('Checking…');
+  try {
+    await Sync.test(url, token);
+    await saveSyncSettings();
+    renderSyncStatus('Connected. Tap “Sync now” to send your expenses across.');
+  } catch (err) {
+    renderSyncStatus(err.message);
+  }
+}
+
+// Local edits are pushed shortly after they settle, rather than on every
+// keystroke of an amount being typed.
+let syncTimer = null;
+function scheduleSync() {
+  if (!Sync.isConfigured()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow({ silent: true }), 1500);
+}
+
+async function syncNow({ silent = false } = {}) {
+  if (!Sync.isConfigured()) return;
+  if (!silent) renderSyncStatus('Syncing…');
+  const result = await Sync.run();
+  renderAll();
+  if (result.ok) {
+    renderSyncStatus();
+    if (!silent) toast(`Synced · sent ${result.pushed}, received ${result.pulled}`);
+  } else if (!silent) {
+    renderSyncStatus(result.error);
+    toast('Sync failed');
+  }
 }
 
 function saveCurrency() {
@@ -1084,6 +1169,7 @@ function applyQuickAdd() {
     try {
       Store.addExpense({ date: todayStr(), amountMinor: minor, category, note });
       renderAll();
+      scheduleSync();
       toast(`Saved ${formatMoney(minor, { compact: true })} · ${categoryMeta(category).label}`);
       return;
     } catch (err) {
@@ -1202,6 +1288,11 @@ function init() {
   el('catBackdrop').addEventListener('click', (e) => {
     if (e.target === el('catBackdrop')) closeCategoryEditor();
   });
+  el('setSyncUrl').addEventListener('change', saveSyncSettings);
+  el('setSyncToken').addEventListener('change', saveSyncSettings);
+  el('syncTestBtn').addEventListener('click', checkSyncConnection);
+  el('syncNowBtn').addEventListener('click', () => syncNow());
+
   el('copyQuickUrl').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(el('quickUrl').textContent);
@@ -1231,6 +1322,13 @@ function init() {
 
   renderToday();
   applyQuickAdd();
+
+  // Pull anything logged elsewhere (another device, or a shortcut writing
+  // straight to the sheet) whenever the app is opened or returned to.
+  syncNow({ silent: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncNow({ silent: true });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
