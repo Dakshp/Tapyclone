@@ -128,6 +128,26 @@ Remember `amountMinor` is paise: type `44400` for ₹444.
 afterwards. That marks the row as freshly changed, so your edit wins over the
 copy sitting on a phone; otherwise the phone's older copy may overwrite it.
 
+## Checking it works
+
+A minute, once you are connected:
+
+1. In the sheet, add a row filling in only **date** (today), **amountMinor**
+   (`12300` for ₹123) and **category** (`Food & Drink`). Leave every other cell
+   empty.
+2. In Tappy: **Settings → Sync now**.
+3. The line under the buttons should read *"…Last sync brought back 1 expense."*
+4. Open **Today** — ₹123 is in the list.
+
+Then the other direction:
+
+5. Add an expense in Tappy, tap **Sync now**, and look at the sheet. A new row
+   appears, with `uid` and the timestamps filled in.
+
+If step 3 says *"Everything was already up to date"*, the row was not picked up —
+check the date is today's and that `amountMinor` is a plain number with no ₹ sign
+or comma.
+
 ## Troubleshooting
 
 **"Could not reach the sync address."** Access is probably not set to *Anyone*.

@@ -1016,6 +1016,10 @@ function renderSettings() {
   renderCategoryManager();
 }
 
+// The outcome of the last sync, kept on screen rather than only in a toast that
+// disappears - checking whether sync worked is the whole reason to look here.
+let lastSyncResult = null;
+
 function renderSyncStatus(message) {
   const s = Store.getSettings();
   const box = el('syncStatus');
@@ -1027,9 +1031,22 @@ function renderSyncStatus(message) {
     box.textContent = 'Not connected — expenses stay on this device only.';
     return;
   }
-  box.textContent = s.lastSyncAt
-    ? `Connected. Last synced ${new Date(s.lastSyncAt).toLocaleString()}.`
-    : 'Connected. Not synced yet — tap “Sync now”.';
+  if (!s.lastSyncAt) {
+    box.textContent = 'Connected. Not synced yet — tap “Sync now”.';
+    return;
+  }
+  const when = `Last synced ${new Date(s.lastSyncAt).toLocaleString()}.`;
+  if (!lastSyncResult) {
+    box.textContent = `Connected. ${when}`;
+    return;
+  }
+  const { pushed, pulled } = lastSyncResult;
+  const parts = [];
+  if (pushed) parts.push(`sent ${pushed}`);
+  if (pulled) parts.push(`brought back ${pulled}`);
+  box.textContent = parts.length
+    ? `${when} Last sync ${parts.join(' and ')} ${pushed + pulled === 1 ? 'expense' : 'expenses'}.`
+    : `${when} Everything was already up to date.`;
 }
 
 // Once a sheet is connected the shortcut can post straight to it, which is the
@@ -1092,6 +1109,7 @@ async function syncNow({ silent = false } = {}) {
   const result = await Sync.run();
   renderAll();
   if (result.ok) {
+    lastSyncResult = result;
     renderSyncStatus();
     if (!silent) toast(`Synced · sent ${result.pushed}, received ${result.pulled}`);
   } else if (!silent) {
