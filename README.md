@@ -118,6 +118,13 @@ translucent, blurred panels that content scrolls beneath, the tab bar is a
 detached capsule rather than a bar welded to the screen edge, and the add button
 is tinted glass with a specular top edge.
 
+The add button is the same material, tinted rather than solid, so content blurs
+and colours through it instead of being hidden behind it.
+
+Apple's guidance for native apps is *"don't fake borders or bevels; the system
+adds highlights for you"*. On the web nothing does, so the specular edge is drawn
+here — but kept to a thin bright rim that fades underneath, rather than a bevel.
+
 The important constraint is that **the blur is an enhancement, never what keeps
 text readable**. iOS's *Reduce Transparency* setting switches it off, and some
 engines parse `backdrop-filter` without compositing it. So the fills are opaque
