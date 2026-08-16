@@ -139,6 +139,15 @@ scrolls the chart instead. One gesture moves one period however hard it is
 thrown: a trackpad keeps sending deltas for about a second after the fingers
 lift, and letting distance decide would hand control to that momentum tail.
 
+Both the chart and the calendar sit in a **three-page strip** — the page before,
+the page shown, and the page after — with the middle one at rest. A drag moves
+the strip itself, one-to-one with the finger, so the neighbour is already drawn
+and travelling into view rather than appearing once the gesture has ended. The
+card never moves; before this the card was nudged a few pixels and its contents
+swapped underneath, which read as the page changing rather than the contents
+scrolling. A drag towards a page that does not exist still moves, just
+reluctantly, which says "nothing here" by feel rather than by refusing.
+
 A swipe **scrolls the chart**: the whole window slides one period and the
 selection keeps its place inside it, so the first swipe already uncovers a day
 that was not on screen. It used to move only the selection, leaving the window
@@ -323,9 +332,22 @@ Today is **outlined** and the selection is **filled**: two different marks, so
 Days that have not happened are greyed and cannot be selected — a day with no
 spending yet is not a day with nothing spent.
 
+Each cell carries the **day's total as well as its shade** — the shading is what
+makes a heavy week visible without reading thirty numbers, the figure is what
+lets you check one. It is a plain grouped number, deliberately not `Intl`'s
+compact notation: in `en-IN` that abbreviates a thousand as **T**, so ₹4,500
+renders as "4.5T", which reads as trillions to anyone who has not met the
+convention.
+
 Swiping moves a whole month and keeps the day of the month, so the figures below
 stay about a comparable day rather than jumping to the 1st. The header arrows
 still step a single day, so both scales are reachable.
+
+The grid is `repeat(7, minmax(0, 1fr))`, not `repeat(7, 1fr)`. A bare `1fr`
+floors each track at its content's minimum, and the empty leading cells'
+`aspect-ratio` fed the row height back in as a width — the first five columns
+came out at 53.8px against the rest at 43.4px, the grid overflowed its card, and
+the whole month sat a column out of true.
 
 ## Backing up
 

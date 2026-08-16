@@ -132,8 +132,10 @@
           <span class="cal-month" id="calMonth"></span>
           <button class="cal-nav" id="calNext" type="button" aria-label="Later month">&#8250;</button>
         </div>
+        <!-- The weekday row stays put; only the grid travels, because Monday is
+             Monday in every month and sliding it would be motion saying nothing. -->
         <div class="cal-dows" id="calDows" aria-hidden="true"></div>
-        <div class="cal-grid" id="calGrid" role="grid" aria-label="Spending by day"></div>
+        <div class="pager" id="calPager"><div class="pager-track"></div></div>
         <div class="cal-foot">
           <span class="cal-scale" id="calScale"></span>
           <span class="cal-note">Swipe for other months</span>
@@ -142,7 +144,10 @@
 
       <div class="card chart-card">
         <div class="chart-wrap">
-          <svg id="periodSvg" role="img" aria-label="Spending by period"></svg>
+          <!-- Three pages wide: the window before, the one shown, and the one
+               after. A drag moves the strip, so the neighbour is already on
+               screen and arriving rather than appearing after the fact. -->
+          <div class="pager" id="chartPager"><div class="pager-track"></div></div>
           <div class="viz-tip hidden" id="periodTip" role="status" aria-live="polite"></div>
         </div>
         <p class="chart-note" id="chartNote"></p>

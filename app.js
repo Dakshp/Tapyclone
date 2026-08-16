@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 13;
+const APP_VERSION = 14;
 
 const state = {
   date: todayStr(),
@@ -549,6 +549,100 @@ function movePeriod(delta) {
   renderCompare();
 }
 
+
+// ---------- Pager ----------
+//
+// A three-page strip: the page before, the page shown, and the page after, with
+// the middle one at rest. A drag moves the strip itself, so the neighbour is
+// already on screen and travelling under the finger rather than appearing after
+// the gesture has ended. The previous version nudged the whole card a few pixels
+// and then swapped its contents, which read as the page changing rather than the
+// contents moving.
+const REST = 'translateX(-33.3333%)';
+const GLIDE = 'transform .26s cubic-bezier(.25, .9, .3, 1)';
+
+function fillPager(pager, buildPage) {
+  const track = pager.querySelector('.pager-track');
+  track.innerHTML = '';
+  [-1, 0, 1].forEach((offset) => {
+    const page = document.createElement('div');
+    // is-current marks the one page that is live. The neighbours exist to be
+    // looked at mid-swipe: nothing binds to them, and a tab stop on an
+    // off-screen chart helps nobody.
+    page.className = offset === 0 ? 'pager-page is-current' : 'pager-page';
+    if (offset !== 0) page.setAttribute('aria-hidden', 'true');
+    const node = buildPage(offset);
+    if (node) page.appendChild(node);
+    track.appendChild(page);
+  });
+  track.style.transition = 'none';
+  track.style.transform = REST;
+}
+
+/**
+ * Wire the drag. `step` commits the move; `canStep` says whether there is
+ * anything that way, so the strip can resist instead of sliding to a blank.
+ */
+function attachPager(pager, { step, canStep, on }) {
+  const track = pager.querySelector('.pager-track');
+  // The gesture is taken across the whole card, but only the strip inside it
+  // moves. Listening on the strip alone would mean a drag starting on the card's
+  // padding, its heading or its footnote did nothing at all.
+  const surface = on || pager;
+  let settle = null;
+
+  const glideTo = (transform, then) => {
+    track.style.transition = GLIDE;
+    track.style.transform = transform;
+    if (!then) return;
+    // transitionend can be missed if the element is re-rendered under it, so the
+    // commit is also on a timer - whichever arrives first wins, once.
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      then();
+    };
+    track.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 300);
+  };
+
+  onHorizontalSwipe(surface, {
+    threshold: 32,
+    onDrag: (dx, ended) => {
+      if (ended) {
+        // onSwipe fires immediately after this when the drag was long enough,
+        // and cancels the snap-back before it runs.
+        settle = setTimeout(() => glideTo(REST), 0);
+        return;
+      }
+      hidePeriodTip();
+      // Resist rather than refuse: a drag towards a page that does not exist
+      // still moves, just reluctantly, which says "nothing here" by feel.
+      const resisted = (dx < 0 && !canStep(1)) || (dx > 0 && !canStep(-1));
+      const travel = resisted ? dx * 0.22 : dx;
+      track.style.transition = 'none';
+      track.style.transform = `translateX(calc(-33.3333% + ${travel}px))`;
+    },
+    onSwipe: (dir) => {
+      clearTimeout(settle);
+      lastChartSwipeAt = Date.now();
+      if (!canStep(dir)) {
+        glideTo(REST);
+        return;
+      }
+      // Carry the strip the rest of the way, then commit. The re-render puts a
+      // fresh set of three pages back at rest, so the swap is invisible.
+      glideTo(dir > 0 ? 'translateX(-66.6667%)' : 'translateX(0%)', () => step(dir));
+    },
+  });
+
+  surface.addEventListener('wheel', (e) => onWheelGesture(e, (dir) => {
+    if (!canStep(dir)) return;
+    glideTo(dir > 0 ? 'translateX(-66.6667%)' : 'translateX(0%)', () => step(dir));
+  }), { passive: false });
+}
+
 // ---------- Calendar ----------
 
 // Four steps rather than a continuous ramp. A smooth gradient asks the reader to
@@ -590,6 +684,92 @@ function moveCalendarMonth(delta) {
   renderCompare();
 }
 
+/**
+ * The day's total, short enough for a 44px cell.
+ *
+ * Deliberately NOT Intl's compact notation: for en-IN that abbreviates a
+ * thousand as "T", so 4,500 renders as "4.5T" - which reads as trillions to
+ * anyone who has not met the Indian English convention. A plain grouped number
+ * is a character or two longer and cannot be misread. The currency symbol is
+ * left off; it is on every other figure on the screen, and inside a cell it
+ * costs width the number needs more.
+ */
+function cellAmount(minor) {
+  if (!minor) return '';
+  const s = Store.getSettings();
+  const value = Math.round(minor / Store.MINOR_PER_MAJOR);
+  try {
+    return new Intl.NumberFormat(s.locale, { maximumFractionDigits: 0 }).format(value);
+  } catch (err) {
+    return String(value);
+  }
+}
+
+/** One month's grid, as a detached node so the pager can hold three of them. */
+function buildCalGrid(month, selected) {
+  const today = todayStr();
+  const days = lastDayOfMonth(month);
+  const totals = Store.getDailyTotals(days, `${month}-${String(days).padStart(2, '0')}`);
+  const byDate = Object.fromEntries(totals.map((t) => [t.date, t.totalMinor]));
+  const max = Math.max(...totals.map((t) => t.totalMinor), 1);
+
+  const grid = document.createElement('div');
+  grid.className = 'cal-grid';
+  grid.setAttribute('role', 'grid');
+  grid.setAttribute('aria-label', `Spending in ${formatMonthTitle(month)}`);
+
+  // Monday-first, matching the week granularity elsewhere in the app.
+  const [y, m] = month.split('-').map(Number);
+  const firstDow = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  for (let i = 0; i < firstDow; i++) {
+    const blank = document.createElement('span');
+    blank.className = 'cal-blank';
+    grid.appendChild(blank);
+  }
+
+  for (let d = 1; d <= days; d++) {
+    const date = `${month}-${String(d).padStart(2, '0')}`;
+    const amount = byDate[date] || 0;
+    const future = date > today;
+
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cal-day';
+    cell.dataset.date = date;
+    cell.dataset.amount = String(amount);
+    cell.disabled = future;
+
+    // Step 0 is genuinely nothing; anything spent is at least step 1, so a small
+    // day never disappears into the empty ones.
+    const step = amount > 0 ? Math.max(1, Math.ceil((amount / max) * (CAL_STEPS - 1))) : 0;
+    cell.dataset.level = future ? 'future' : String(step);
+    if (date === today) cell.classList.add('is-today');
+    if (date === selected) {
+      cell.classList.add('is-selected');
+      cell.setAttribute('aria-current', 'date');
+    }
+
+    const num = document.createElement('span');
+    num.className = 'cal-num';
+    num.textContent = String(d);
+    cell.appendChild(num);
+
+    // The amount in the cell, so the grid can be read as figures and not only
+    // as shading. The shading stays because it is what makes a heavy week
+    // visible without reading thirty numbers.
+    const sum = document.createElement('span');
+    sum.className = 'cal-sum';
+    sum.textContent = cellAmount(amount);
+    cell.appendChild(sum);
+
+    cell.setAttribute('aria-label', `${formatDayTitle(date)}: ${
+      future ? 'not yet' : amount > 0 ? formatMoney(amount, { compact: true }) : 'nothing spent'
+    }`);
+    grid.appendChild(cell);
+  }
+  return grid;
+}
+
 function renderCalendar(data) {
   const card = el('calendarCard');
   const isDay = data.granularity === 'day';
@@ -629,67 +809,32 @@ function renderCalendar(data) {
     dows.appendChild(cell);
   }
 
-  const days = lastDayOfMonth(month);
-  const totals = Store.getDailyTotals(days, `${month}-${String(days).padStart(2, '0')}`);
-  const byDate = Object.fromEntries(totals.map((t) => [t.date, t.totalMinor]));
-  const spent = totals.map((t) => t.totalMinor).filter((v) => v > 0);
-  const max = Math.max(...spent, 1);
+  fillPager(el('calPager'), (offset) => {
+    const [y, m] = month.split('-').map(Number);
+    const target = new Date(Date.UTC(y, m - 1 + offset, 1)).toISOString().slice(0, 7);
+    if (target > monthOf(today)) return null;
+    return buildCalGrid(target, data.period);
+  });
 
-  const grid = el('calGrid');
-  grid.innerHTML = '';
-
-  // Monday-first, matching the week granularity elsewhere in the app.
-  const firstDow = (new Date(Date.UTC(...month.split('-').map(Number), 1)).getUTCDay() + 6) % 7;
-  for (let i = 0; i < firstDow; i++) {
-    const blank = document.createElement('span');
-    blank.className = 'cal-blank';
-    grid.appendChild(blank);
-  }
-
-  for (let d = 1; d <= days; d++) {
-    const date = `${month}-${String(d).padStart(2, '0')}`;
-    const amount = byDate[date] || 0;
-    const future = date > today;
-
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    cell.className = 'cal-day';
-    cell.dataset.date = date;
-    cell.disabled = future;
-
-    // Step 0 is genuinely nothing; anything spent is at least step 1, so a small
-    // day never disappears into the empty ones.
-    const step = amount > 0 ? Math.max(1, Math.ceil((amount / max) * (CAL_STEPS - 1))) : 0;
-    cell.dataset.level = future ? 'future' : String(step);
-    if (date === today) cell.classList.add('is-today');
-    if (date === data.period) cell.classList.add('is-selected');
-
-    const num = document.createElement('span');
-    num.className = 'cal-num';
-    num.textContent = String(d);
-    cell.appendChild(num);
-
-    cell.setAttribute('aria-label', `${formatDayTitle(date)}: ${
-      future ? 'not yet' : amount > 0 ? formatMoney(amount, { compact: true }) : 'nothing spent'
-    }`);
-    if (date === data.period) cell.setAttribute('aria-current', 'date');
-
+  el('calPager').querySelectorAll('.is-current .cal-day').forEach((cell) => {
     cell.addEventListener('click', () => {
       if (Date.now() - lastChartSwipeAt < 400) return;
-      compare.period = date;
-      compare.anchor = date;
+      compare.period = cell.dataset.date;
+      compare.anchor = cell.dataset.date;
       renderCompare();
     });
-    grid.appendChild(cell);
-  }
+  });
 
   // The scale is spelled out, because a shade on its own means nothing - and
   // the direction is not the same in both themes: the ramp runs towards deep
   // indigo on a light page and towards pale indigo on a dark one, so saying
   // "darker" in dark mode would name the wrong end.
+  const spent = Store.getDailyTotals(
+    lastDayOfMonth(month), `${month}-${String(lastDayOfMonth(month)).padStart(2, '0')}`
+  ).map((t) => t.totalMinor).filter((v) => v > 0);
   const dark = document.documentElement.dataset.theme === 'dark';
   el('calScale').textContent = spent.length
-    ? `${dark ? 'Brighter' : 'Darker'} means more spent · up to ${formatMoney(max, { compact: true })} a day`
+    ? `${dark ? 'Brighter' : 'Darker'} means more spent · up to ${formatMoney(Math.max(...spent), { compact: true })} a day`
     : 'Nothing spent this month';
 }
 
@@ -702,13 +847,6 @@ function renderCompare() {
     categoryId: compare.categoryId,
     span: SPAN[compare.granularity],
   });
-
-  // A re-render always lands the chart at rest. A gesture that is interrupted -
-  // by the app being backgrounded mid-drag, say - would otherwise leave the card
-  // sitting a few pixels off-centre with no gesture left to put it back.
-  const chartCard = document.querySelector('#screen-stats .chart-card');
-  chartCard.classList.remove('dragging');
-  chartCard.style.transform = '';
 
   el('periodTitle').textContent = periodLabel(data.period, data.granularity);
   const unit = UNIT_NAME[data.granularity].toLowerCase();
@@ -793,8 +931,13 @@ function barPath(x, y, w, h, r) {
 
 let lastChartSwipeAt = 0;
 
-function renderPeriodChart(data) {
-  const svg = el('periodSvg');
+/** One window of bars, as a detached <svg> so the pager can hold three. */
+function buildChartSvg(data, interactive) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  if (interactive) svg.id = 'periodSvg';
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Spending by period');
+
   // The viewBox is kept close to the real rendered width so text scales to a
   // sensible size rather than shrinking to a fraction of what it says.
   const W = 360;
@@ -839,7 +982,7 @@ function renderPeriodChart(data) {
               font-weight="${selected ? '700' : '400'}">${line2}</text>
         <rect class="hit" data-period="${s.period}" x="${x - gap / 2}" y="${pad.top}"
               width="${barW + gap}" height="${plotH + pad.bottom}" fill="transparent"
-              tabindex="0" role="button"></rect>
+              ${interactive ? 'tabindex="0" role="button"' : ''}></rect>
       `;
     })
     .join('');
@@ -847,6 +990,8 @@ function renderPeriodChart(data) {
   svg.innerHTML =
     `<line x1="${pad.side}" y1="${baseY}" x2="${W - pad.side}" y2="${baseY}" stroke="var(--viz-axis)" stroke-width="1"/>` +
     marks;
+
+  if (!interactive) return svg;
 
   const byPeriod = {};
   data.series.forEach((s) => (byPeriod[s.period] = s));
@@ -875,6 +1020,24 @@ function renderPeriodChart(data) {
         select();
       }
     });
+  });
+  return svg;
+}
+
+function renderPeriodChart(data) {
+  const g = data.granularity;
+  const latest = Store.periodOf(todayStr(), g);
+  fillPager(el('chartPager'), (offset) => {
+    if (offset === 0) return buildChartSvg(data, true);
+    const anchor = Store.shiftPeriod(compare.anchor, g, offset);
+    if (anchor > latest) return null;
+    return buildChartSvg(Store.getComparison({
+      granularity: g,
+      period: Store.shiftPeriod(compare.period, g, offset),
+      endPeriod: anchor,
+      categoryId: compare.categoryId,
+      span: SPAN[g],
+    }), false);
   });
 }
 
@@ -1181,9 +1344,6 @@ function initCompareControls() {
     renderCompare();
   });
 
-  el('prevPeriod').addEventListener('click', () => movePeriod(-1));
-  el('nextPeriod').addEventListener('click', () => movePeriod(1));
-
   el('dayViewToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-view]');
     if (!btn) return;
@@ -1194,65 +1354,38 @@ function initCompareControls() {
   el('calPrev').addEventListener('click', () => moveCalendarMonth(-1));
   el('calNext').addEventListener('click', () => moveCalendarMonth(1));
 
-  // The calendar scrolls by month, since a month is what it shows. The arrows
-  // in the header still step a single day, so both scales are reachable.
-  const cal = el('calendarCard');
-  onHorizontalSwipe(cal, {
+  el('prevPeriod').addEventListener('click', () => movePeriod(-1));
+  el('nextPeriod').addEventListener('click', () => movePeriod(1));
+
+  const canMovePeriod = (dir) => dir < 0
+    || Store.shiftPeriod(compare.anchor, compare.granularity, 1) <= Store.periodOf(todayStr(), compare.granularity)
+    || compare.period < compare.anchor;
+
+  // The chart scrolls by one period; the calendar by a whole month, since a
+  // month is what it shows. Both move their own contents rather than the card.
+  attachPager(el('chartPager'), {
+    step: movePeriod,
+    canStep: canMovePeriod,
+    on: document.querySelector('#screen-stats .chart-card'),
+  });
+  attachPager(el('calPager'), {
+    step: moveCalendarMonth,
+    canStep: (dir) => dir < 0 || monthOf(compare.period) < monthOf(todayStr()),
+    on: el('calendarCard'),
+  });
+
+  // The headline above is about the same period, so a swipe that lands slightly
+  // high is not a miss. It has nothing of its own to slide, so it just commits.
+  const hero = document.querySelector('#screen-stats .hero-card');
+  onHorizontalSwipe(hero, {
     threshold: 32,
     onSwipe: (dir) => {
       lastChartSwipeAt = Date.now();
-      moveCalendarMonth(dir);
-    },
-    onDrag: (dx, done) => {
-      if (done) {
-        cal.classList.remove('dragging');
-        cal.style.transform = '';
-        return;
-      }
-      cal.classList.add('dragging');
-      cal.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
+      hidePeriodTip();
+      if (canMovePeriod(dir)) movePeriod(dir);
     },
   });
-  cal.addEventListener('wheel', (e) => onWheelGesture(e, moveCalendarMonth), { passive: false });
-
-  const chart = document.querySelector('#screen-stats .chart-card');
-  const hero = document.querySelector('#screen-stats .hero-card');
-
-  // Both the chart and the headline above it accept the gesture. One target is
-  // easy to miss on a phone, and the headline is about the same period anyway,
-  // so a swipe that lands slightly high should still work. Only the chart is
-  // dragged, though - it is the thing that visibly moves through time.
-  [chart, hero].forEach((target) => {
-    onHorizontalSwipe(target, {
-      // Lower than the default: these are wide targets with nothing else
-      // competing for a horizontal drag, so a short flick should already count.
-      threshold: 32,
-      // Dragging left moves forward in time, matching the direction the timeline
-      // runs and how paged iOS views behave.
-      onSwipe: (dir) => {
-        lastChartSwipeAt = Date.now();
-        movePeriod(dir);
-      },
-      onDrag: (dx, done) => {
-        if (done) {
-          // Restore the snap-back transition only once the finger is gone.
-          chart.classList.remove('dragging');
-          chart.style.transform = '';
-          return;
-        }
-        // While dragging, the transition would lag a frame behind the finger and
-        // make the gesture feel unresponsive.
-        chart.classList.add('dragging');
-        chart.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
-        // A touch fires pointerenter on a bar but never pointerleave, so without
-        // this the tooltip sticks open for the whole gesture.
-        hidePeriodTip();
-      },
-    });
-    // Same reason: end the gesture with no tooltip left hanging.
-    target.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
-    target.addEventListener('wheel', (e) => onWheelGesture(e, movePeriod), { passive: false });
-  });
+  hero.addEventListener('wheel', (e) => onWheelGesture(e, movePeriod), { passive: false });
 
   el('tableToggle').addEventListener('click', () => {
     compare.showTable = !compare.showTable;

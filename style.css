@@ -512,9 +512,7 @@ button {
 .calendar-card {
   padding: 12px 12px 10px;
   touch-action: pan-y;
-  transition: transform .22s cubic-bezier(.2, .8, .2, 1);
 }
-.calendar-card.dragging { transition: none; }
 
 .cal-head {
   display: flex;
@@ -537,7 +535,11 @@ button {
 
 .cal-dows, .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr), not 1fr. A bare 1fr floors each track at its content's
+     minimum, and the blanks' aspect-ratio fed the row height back in as a width
+     - so the first five columns grew to 53.8px against the rest at 43.4px, the
+     grid overflowed the card, and the month sat a column out of true. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px;
 }
 .cal-dows {
@@ -550,10 +552,15 @@ button {
   color: var(--muted);
 }
 
-.cal-blank { aspect-ratio: 1; }
+/* No aspect-ratio here: the row height comes from the day cells, and giving
+   the blanks one of their own is what skewed the column widths. */
+.cal-blank { min-width: 0; }
 
 .cal-day {
-  aspect-ratio: 1;
+  gap: 1px;
+  /* Taller than wide, to fit the amount under the date without shrinking either
+     to the point of being decorative. */
+  aspect-ratio: 1 / 1.24;
   border-radius: 11px;
   display: grid;
   place-items: center;
@@ -568,7 +575,22 @@ button {
 .cal-day[data-level="2"] { background: var(--cal-2); }
 .cal-day[data-level="3"] { background: var(--cal-3); color: var(--cal-3-ink); }
 .cal-day[data-level="future"] { background: none; color: var(--muted); opacity: .35; }
-.cal-num { font-size: 13.5px; font-weight: 600; }
+.cal-num { font-size: 13.5px; font-weight: 600; line-height: 1.1; }
+/* The figure, not just the shade. Short form - "420", "1.5K" - because a cell is
+   about 44px wide and a full "₹1,500.00" would have to shrink past reading. */
+.cal-sum {
+  font-size: 9.5px;
+  /* A five-figure day is rare but must not blow the cell open. */
+  letter-spacing: -.02em;
+  font-weight: 600;
+  line-height: 1.1;
+  opacity: .78;
+  font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  overflow: hidden;
+}
+.cal-day[data-level="0"] .cal-sum,
+.cal-day[data-level="future"] .cal-sum { display: none; }
 
 /* Today is outlined, the selection is filled. Two different marks, so "where I
    am" and "what I am looking at" never have to be told apart by shade. */
@@ -694,12 +716,14 @@ button {
 }
 .row-wrap.revealed .expense-row { transform: translateX(-176px); }
 
-/* The chart follows the finger a little before snapping to the next period. */
-.chart-card { touch-action: pan-y; transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
-/* While a finger is down the transition would animate towards each new position
-   instead of sitting at it, so the card trails the finger by a frame and the
-   gesture feels dead. It comes back for the snap once the finger lifts. */
-.chart-card.dragging { transition: none; }
+/* ---------- Pager ----------
+   Three pages wide with the middle one at rest, so a drag moves the contents and
+   the neighbour arrives with the finger. The card itself no longer moves: sliding
+   the whole card read as the page changing rather than the contents scrolling. */
+.pager { overflow: hidden; touch-action: pan-y; }
+.pager-track { display: flex; width: 300%; will-change: transform; }
+.pager-page { flex: 0 0 33.3333%; min-width: 0; }
+.chart-card { touch-action: pan-y; }
 /* Both hero cards take a horizontal drag - days on Today, periods on Compare. */
 .hero-card { touch-action: pan-y; }
 
