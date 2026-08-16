@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 
 const state = {
   date: todayStr(),
@@ -593,9 +593,24 @@ function moveCalendarMonth(delta) {
 function renderCalendar(data) {
   const card = el('calendarCard');
   const isDay = data.granularity === 'day';
-  card.classList.toggle('hidden', !isDay);
-  el('chartNote').parentElement.classList.toggle('hidden', isDay);
-  if (!isDay) return;
+  // The calendar is an alternative to the chart, not a replacement for it. Both
+  // answer different questions - the chart shows the run of recent days, the
+  // calendar the shape of a whole month - so the choice is the reader's, and it
+  // is remembered.
+  const view = isDay ? Store.getSettings().dayView : 'chart';
+  const showCal = isDay && view === 'calendar';
+
+  const toggle = el('dayViewToggle');
+  toggle.classList.toggle('hidden', !isDay);
+  toggle.querySelectorAll('button').forEach((b) => {
+    const on = b.dataset.view === view;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+
+  card.classList.toggle('hidden', !showCal);
+  el('chartNote').parentElement.classList.toggle('hidden', showCal);
+  if (!showCal) return;
 
   const month = monthOf(data.period);
   const today = todayStr();
@@ -1168,6 +1183,13 @@ function initCompareControls() {
 
   el('prevPeriod').addEventListener('click', () => movePeriod(-1));
   el('nextPeriod').addEventListener('click', () => movePeriod(1));
+
+  el('dayViewToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    Store.setSettings({ dayView: btn.dataset.view });
+    renderCompare();
+  });
 
   el('calPrev').addEventListener('click', () => moveCalendarMonth(-1));
   el('calNext').addEventListener('click', () => moveCalendarMonth(1));

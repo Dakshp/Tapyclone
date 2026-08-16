@@ -419,6 +419,28 @@ button {
   font-weight: 550;
 }
 
+/* Two shapes for the same days, so the control is a switch rather than a link.
+   Icons alone: the row already carries a heading and the table link, and three
+   pieces of text across a phone-width row is one too many. */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--line);
+  align-self: center;
+}
+.view-toggle button {
+  width: 32px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.view-toggle button svg { width: 16px; height: 16px; }
+.view-toggle button.active { background: var(--surface); color: var(--primary); }
+
 .link-btn { font-size: 13px; font-weight: 600; color: var(--primary); padding: 2px 4px; }
 
 /* ---------- Delta indicators ---------- */
@@ -596,8 +618,10 @@ button {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 10px;
   margin: 26px 4px 10px;
 }
+.section-head h2 { margin-right: auto; }
 .section-head h2 { font-size: 15px; font-weight: 650; margin: 0; }
 .section-count { font-size: 13px; color: var(--muted); }
 

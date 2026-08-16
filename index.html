@@ -107,6 +107,21 @@
 
       <div class="section-head">
         <h2 id="seriesHead">Month by month</h2>
+        <!-- Only offered at day zoom, where both shapes make sense: the chart for
+             the run of recent days, the calendar for the shape of a whole month. -->
+        <div class="view-toggle hidden" id="dayViewToggle" role="group" aria-label="Day view">
+          <button type="button" data-view="chart" aria-label="Chart">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 20V12.5M12 20V4.5M18 20V9" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" data-view="calendar" aria-label="Calendar">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3.4" y="5.2" width="17.2" height="15.4" rx="4" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M3.4 10h17.2M8.2 3.4v3.4M15.8 3.4v3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
         <button class="link-btn" id="tableToggle" aria-expanded="false">Show table</button>
       </div>
       <!-- Day zoom gets a month calendar instead of seven bars: a month at a

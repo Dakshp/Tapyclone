@@ -48,6 +48,8 @@ const Store = (() => {
     monthlyBudgetMinor: 3000000, // 30,000.00
     // 'system' follows the phone; 'light' and 'dark' override it.
     theme: 'system',
+    // Which shape the day series takes: the bar chart or the month calendar.
+    dayView: 'chart',
     // Sync is off until a Web App URL and token are entered in Settings.
     syncUrl: '',
     syncToken: '',
@@ -526,6 +528,7 @@ const Store = (() => {
       locale: typeof s.locale === 'string' && s.locale ? s.locale : DEFAULT_SETTINGS.locale,
       monthlyBudgetMinor: Math.max(0, budget),
       theme: ['light', 'dark', 'system'].includes(s.theme) ? s.theme : DEFAULT_SETTINGS.theme,
+      dayView: ['chart', 'calendar'].includes(s.dayView) ? s.dayView : DEFAULT_SETTINGS.dayView,
       syncUrl: str(s.syncUrl),
       syncToken: str(s.syncToken),
       syncAddToken: str(s.syncAddToken),

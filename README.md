@@ -51,10 +51,11 @@ Once installed it works with no connection at all.
 - **Monthly budget** that tells you what is left *and* what that works out to
   per day for the rest of the month, so overspending shows up early.
 - **Compare** — an interactive dashboard that zooms out in four steps:
-  **Day → Week → Month → Year**, starting on Day. Day zoom is a **month
-  calendar**: every day of the month shaded by what was spent on it, swipe for
-  other months, tap a day to look at it. Week, month and year stay bars. Swipe
-  the chart or tap a bar to pick a period; focus a single category to rescope the whole screen. Under
+  **Day → Week → Month → Year**, starting on Day. Day zoom offers **two shapes**
+  for the same data — the bar chart (the default) for the run of recent days, or
+  a **month calendar** with every day shaded by what was spent on it. One tap
+  switches, and the choice is remembered. Swipe the chart or tap a bar to pick a
+  period; focus a single category to rescope the whole screen. Under
   the chart, **where it went** breaks the period down by category with each
   one's share of the total, and **Entries** lists the actual expenses behind
   every figure — editable in place, exactly like the Today list, and changing
@@ -300,9 +301,15 @@ from a cached one, and "it still doesn't work" cannot be answered. Bump
 
 ## The calendar
 
-At day zoom the seven bars are replaced by a month grid — the shape everyone
-already reads dates in, and one that makes the shape of a month visible:
-weekends, the gap after payday, the run of quiet days.
+At day zoom the chart has a twin: a month grid — the shape everyone already
+reads dates in, and one that makes the shape of a month visible: weekends, the
+gap after payday, the run of quiet days.
+
+It is an **alternative, not a replacement**. The two answer different questions —
+the chart shows the run of the last seven days and how they compare, the calendar
+shows a whole month at once — so a small switch beside the heading picks between
+them and the choice is stored. It only appears at day zoom, since week, month and
+year have no calendar to show.
 
 Shading is **four flat steps, not a gradient**. A smooth ramp asks the reader to
 rank shades against each other; four levels can be told apart at a glance. Any
