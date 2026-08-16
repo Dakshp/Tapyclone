@@ -443,6 +443,25 @@ button {
 
 .link-btn { font-size: 13px; font-weight: 600; color: var(--primary); padding: 2px 4px; }
 
+/* The period this card is about, with its own stepper. It lives here rather than
+   in the header because it describes this card, not the screen. */
+.period-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: -6px 0 6px;
+}
+.period-name {
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  min-width: 0;
+}
+.period-nav .nav-arrow { width: 34px; height: 34px; font-size: 21px; border-radius: 11px; }
+
 /* ---------- Delta indicators ---------- */
 .delta-pill {
   margin-top: 10px;

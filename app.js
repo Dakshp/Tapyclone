@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 
 const state = {
   date: todayStr(),

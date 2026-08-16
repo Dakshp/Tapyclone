@@ -78,10 +78,12 @@
 
   <!-- ============ COMPARE ============ -->
   <section class="screen hidden" id="screen-stats">
+    <!-- The header names the screen, matching the tab that opens it. It used to
+         show the selected period, which meant tapping "Stats" landed you on a
+         screen titled "Today" - the same word the Today screen already had at
+         the top. The period moved down to the card it actually describes. -->
     <header class="app-header">
-      <button class="nav-arrow" id="prevPeriod" aria-label="Earlier period">&#8249;</button>
-      <span class="date-title" id="periodTitle">Compare</span>
-      <button class="nav-arrow" id="nextPeriod" aria-label="Later period">&#8250;</button>
+      <span class="date-title">Stats</span>
     </header>
 
     <div class="scroll-area">
@@ -99,6 +101,11 @@
       </div>
 
       <div class="hero-card">
+        <div class="period-nav">
+          <button class="nav-arrow" id="prevPeriod" type="button" aria-label="Earlier period">&#8249;</button>
+          <span class="period-name" id="periodTitle">Today</span>
+          <button class="nav-arrow" id="nextPeriod" type="button" aria-label="Later period">&#8250;</button>
+        </div>
         <span class="hero-label" id="cmpLabel">Total spent</span>
         <span class="hero-amount" id="cmpTotal">0</span>
         <span class="delta-pill" id="cmpDelta"></span>

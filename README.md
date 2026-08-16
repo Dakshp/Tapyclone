@@ -245,6 +245,17 @@ choice with it.
 meta tag is updated so a home-screen install does not sit under a pale status
 bar strip.
 
+## Naming the screen
+
+The Compare header used to show the selected period, which at day zoom read
+**Today** — so tapping the **Stats** tab landed you on a screen titled "Today",
+the same word already at the top of the Today screen. Two screens, one word, and
+a tab that disagreed with the header it opened.
+
+The header names the screen now, matching the tab. The period moved into the
+card it actually describes, with its stepper beside it — which is also where the
+calendar already kept its own month control.
+
 ## Legibility
 
 The app is built for someone tracking daily spending, not for a chart reader,
