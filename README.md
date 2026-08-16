@@ -250,3 +250,10 @@ so the interface leans plain:
 Your data lives only on the device. Before switching phones, clearing browser
 data, or reinstalling, go to **Settings → Download backup** and keep the JSON
 file somewhere safe. **Settings → Restore backup** reads it back.
+
+Renaming the repository moves the site's address but **not** your data. Browser
+storage is keyed to the origin — `dakshp.github.io` — and ignores the path, so
+`/Tapyclone/` and `/Tracky/` read and write the same store and everything logged
+before the rename is already there. What does not carry across is the installed
+icon: it points at the old address, so add the new one to the Home Screen and
+delete the old one.
