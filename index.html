@@ -17,6 +17,23 @@
 
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
+
+<!-- Resolve the theme before the first paint. Left to app.js this would run
+     after the stylesheet has already painted, and anyone who picked Dark would
+     see a white flash on every launch. Reading storage directly here keeps it
+     to a few lines and no dependencies; app.js owns it from then on. -->
+<script>
+(function () {
+  var choice = 'system';
+  try {
+    var raw = localStorage.getItem('tracky.v1') || localStorage.getItem('tappy.v1');
+    if (raw) choice = (JSON.parse(raw).settings || {}).theme || 'system';
+  } catch (e) { /* unreadable storage just means the phone decides */ }
+  var dark = choice === 'dark'
+    || (choice !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+})();
+</script>
 </head>
 <body>
 
@@ -147,6 +164,16 @@
           <input type="text" id="setBudget" inputmode="decimal" placeholder="30000">
         </label>
         <p class="hint">Set 0 to hide budget progress.</p>
+      </div>
+
+      <div class="section-head"><h2>Appearance</h2></div>
+      <div class="card">
+        <div class="segmented" id="themeToggle" role="group" aria-label="Appearance">
+          <button type="button" data-theme-choice="light">Light</button>
+          <button type="button" data-theme-choice="dark">Dark</button>
+          <button type="button" data-theme-choice="system">Match phone</button>
+        </div>
+        <p class="hint" id="themeHint"></p>
       </div>
 
       <div class="section-head"><h2>Categories</h2></div>

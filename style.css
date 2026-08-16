@@ -1,5 +1,9 @@
 /* ---------- Tokens ---------- */
 :root {
+  /* Tells the engine which way native bits lean - form controls, the on-screen
+     keyboard, scrollbars - none of which read our custom properties. */
+  color-scheme: light;
+
   --primary: #6366f1;
   --primary-soft: #eef0ff;
   --danger: #ef4444;
@@ -27,27 +31,32 @@
   --glass-blur: saturate(200%) blur(28px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #818cf8;
-    --primary-soft: #23233a;
-    --danger: #f87171;
-    --bg: #0b0b13;
-    --surface: #191926;
-    --text: #f2f2f6;
-    --muted: #9a9aab;
-    --line: #2b2b3a;
-    --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+/* Dark is driven by an attribute on <html>, not by the media query directly.
+   Settings offers Light / Dark / Match phone, and a tiny script in index.html
+   resolves that choice - following the OS when it is set to match - and stamps
+   the result before the first paint. Doing it here rather than in the media
+   query is what makes an explicit choice able to override the phone. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
-    /* On dark the glass must be LIGHTER than the page behind it, the way frosted
-       glass catches light. Matching the background is what made it read as a
-       flat slab. */
-    --glass-fill: rgba(78, 78, 100, .55);
-    --glass-rim-top: rgba(255, 255, 255, .38);
-    --glass-rim-bottom: rgba(255, 255, 255, .04);
-    --glass-hairline: rgba(255, 255, 255, .14);
-    --glass-lift: 0 14px 40px rgba(0, 0, 0, .58), 0 3px 10px rgba(0, 0, 0, .4);
-  }
+  --primary: #818cf8;
+  --primary-soft: #23233a;
+  --danger: #f87171;
+  --bg: #0b0b13;
+  --surface: #191926;
+  --text: #f2f2f6;
+  --muted: #9a9aab;
+  --line: #2b2b3a;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+
+  /* On dark the glass must be LIGHTER than the page behind it, the way frosted
+     glass catches light. Matching the background is what made it read as a
+     flat slab. */
+  --glass-fill: rgba(78, 78, 100, .55);
+  --glass-rim-top: rgba(255, 255, 255, .38);
+  --glass-rim-bottom: rgba(255, 255, 255, .04);
+  --glass-hairline: rgba(255, 255, 255, .14);
+  --glass-lift: 0 14px 40px rgba(0, 0, 0, .58), 0 3px 10px rgba(0, 0, 0, .4);
 }
 
 /* One place to apply the material, so every glass surface stays consistent. */
@@ -259,9 +268,9 @@ button {
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-@media (prefers-color-scheme: dark) {
-  .card, .hero-card, .stat-tile { border: 0.5px solid rgba(255, 255, 255, .06); }
-}
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .hero-card,
+:root[data-theme="dark"] .stat-tile { border: 0.5px solid rgba(255, 255, 255, .06); }
 
 .chart-card { padding: 10px 8px 6px; }
 
@@ -281,16 +290,14 @@ button {
   --viz-down: #006300; /* spending less */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --viz-current: #a5b4fc;
-    --viz-context: #474756;
-    --viz-axis: #3a3a46;
-    --viz-ink: #f2f2f6;
-    --viz-muted: #9a9aab;
-    --viz-up: #f08d8d;
-    --viz-down: #0ca30c;
-  }
+:root[data-theme="dark"] {
+  --viz-current: #a5b4fc;
+  --viz-context: #474756;
+  --viz-axis: #3a3a46;
+  --viz-ink: #f2f2f6;
+  --viz-muted: #9a9aab;
+  --viz-up: #f08d8d;
+  --viz-down: #0ca30c;
 }
 
 .chart-wrap { position: relative; }
@@ -361,6 +368,16 @@ button {
   color: var(--muted);
 }
 .segmented button.active { background: var(--primary-soft); color: var(--primary); }
+
+/* Inside a card the control sits on the same colour as the card itself, so its
+   track would vanish. Sunk into the page colour instead, with no second shadow. */
+.card > .segmented {
+  width: calc(100% - 28px);
+  margin: 14px;
+  background: var(--bg);
+  box-shadow: none;
+}
+.card > .segmented + .hint { padding-top: 0; }
 
 #focusCategory {
   width: 100%;

@@ -1292,8 +1292,52 @@ function afterCategoryChange(message) {
 
 // ---------- Settings ----------
 
+// ---------- Appearance ----------
+
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+// The status bar behind a home-screen app is painted from this, so it has to
+// follow the theme too - otherwise a dark app sits under a pale strip.
+const THEME_COLOR = { light: '#eef0f6', dark: '#0b0b13' };
+
+/**
+ * Resolve the stored choice to an actual scheme and stamp it on <html>.
+ *
+ * 'system' is resolved here rather than left to the stylesheet: with the choice
+ * expressed as an attribute, one CSS block covers dark and nothing has to be
+ * written twice for "dark by preference" and "dark by choice". The same
+ * resolution runs inline in index.html before the first paint - this is what
+ * keeps it right afterwards.
+ */
+function applyTheme() {
+  const choice = Store.getSettings().theme;
+  const dark = choice === 'dark' || (choice !== 'light' && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_COLOR[dark ? 'dark' : 'light']);
+}
+
+function renderThemeToggle() {
+  const choice = Store.getSettings().theme;
+  el('themeToggle')
+    .querySelectorAll('button')
+    .forEach((b) => {
+      const on = b.dataset.themeChoice === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  el('themeHint').textContent = choice === 'system'
+    ? 'Follows your phone, including its light and dark schedule.'
+    : `Always ${choice}, whatever the phone is set to.`;
+}
+
 function renderSettings() {
   const s = Store.getSettings();
+  // Restoring a backup or erasing everything replaces the settings wholesale,
+  // and both re-render from here - so this is where a theme that arrived with
+  // someone else's data gets applied.
+  applyTheme();
+  renderThemeToggle();
   el('setCurrency').value = `${s.currency}|${s.locale}`;
   el('setBudget').value = s.monthlyBudgetMinor
     ? String(s.monthlyBudgetMinor / Store.MINOR_PER_MAJOR)
@@ -1552,6 +1596,11 @@ function renderAll() {
 // ---------- Init ----------
 
 function init() {
+  // The inline script in index.html has already done this before the first
+  // paint. Repeating it here covers the case where storage was unreadable then
+  // but is fine now - a migration from the old key, most likely.
+  applyTheme();
+
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => showScreen(tab.dataset.screen));
   });
@@ -1597,6 +1646,17 @@ function init() {
     const btn = e.target.closest('button[data-key]');
     if (btn) pressKey(btn.dataset.key);
   });
+
+  el('themeToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-theme-choice]');
+    if (!btn) return;
+    Store.setSettings({ theme: btn.dataset.themeChoice });
+    applyTheme();
+    renderThemeToggle();
+  });
+  // Only matters while the choice is "match phone", but the listener is cheap
+  // and applyTheme() already knows to ignore the OS when it has been overridden.
+  darkQuery.addEventListener('change', applyTheme);
 
   el('setCurrency').addEventListener('change', saveCurrency);
   el('setBudget').addEventListener('change', saveBudget);

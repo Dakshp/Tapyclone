@@ -46,6 +46,8 @@ const Store = (() => {
     currency: 'INR',
     locale: 'en-IN',
     monthlyBudgetMinor: 3000000, // 30,000.00
+    // 'system' follows the phone; 'light' and 'dark' override it.
+    theme: 'system',
     // Sync is off until a Web App URL and token are entered in Settings.
     syncUrl: '',
     syncToken: '',
@@ -523,6 +525,7 @@ const Store = (() => {
       currency: typeof s.currency === 'string' && s.currency ? s.currency : DEFAULT_SETTINGS.currency,
       locale: typeof s.locale === 'string' && s.locale ? s.locale : DEFAULT_SETTINGS.locale,
       monthlyBudgetMinor: Math.max(0, budget),
+      theme: ['light', 'dark', 'system'].includes(s.theme) ? s.theme : DEFAULT_SETTINGS.theme,
       syncUrl: str(s.syncUrl),
       syncToken: str(s.syncToken),
       syncAddToken: str(s.syncAddToken),

@@ -58,6 +58,10 @@ Once installed it works with no connection at all.
   every figure — editable in place, exactly like the Today list, and changing
   as soon as you pick a different date. Every plotted value is also available
   as a plain table.
+- **Light, dark, or match the phone**, in Settings. Matching is the default and
+  follows the phone live, including its sunset schedule; picking Light or Dark
+  overrides it permanently, for anyone who finds one of the two easier to read
+  regardless of the hour.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
 
@@ -177,6 +181,25 @@ text readable**. iOS's *Reduce Transparency* setting switches it off, and some
 engines parse `backdrop-filter` without compositing it. So the fills are opaque
 enough to stand alone, and `prefers-reduced-transparency` drops to fully solid
 surfaces.
+
+### How the theme is applied
+
+The choice is stored as `light`, `dark` or `system`, and resolved to an actual
+scheme that is stamped on `<html>` as `data-theme`. The stylesheet then needs
+exactly two blocks — `:root` for light and `:root[data-theme="dark"]` for dark —
+rather than one set of dark tokens for *dark by preference* and a second,
+identical set for *dark by choice*.
+
+That resolution runs twice. Once inline in `index.html`, **before** the
+stylesheet paints, because doing it from `app.js` would mean anyone who picked
+Dark saw a white flash on every launch. Then again in `app.js`, which owns it
+from that point on and re-applies it when a restored backup brings a different
+choice with it.
+
+`color-scheme` is set alongside the tokens, so the parts the app does not paint
+— form controls, the keyboard, scrollbars — follow too, and the `theme-color`
+meta tag is updated so a home-screen install does not sit under a pale status
+bar strip.
 
 ## Legibility
 
