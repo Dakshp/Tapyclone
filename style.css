@@ -3,7 +3,7 @@
   --primary: #6366f1;
   --primary-soft: #eef0ff;
   --danger: #ef4444;
-  --bg: #f4f4f7;
+  --bg: #eef0f6;
   --surface: #ffffff;
   --text: #14141a;
   --muted: #71717f;
@@ -15,11 +15,16 @@
      a bright top edge standing in for the specular highlight, and a soft wide
      shadow so the element reads as floating above the page rather than welded
      to it. */
-  --glass-fill: rgba(255, 255, 255, .93);
-  --glass-edge: rgba(255, 255, 255, .75);
-  --glass-hairline: rgba(20, 20, 40, .07);
-  --glass-lift: 0 10px 34px rgba(20, 20, 40, .13), 0 2px 8px rgba(20, 20, 40, .06);
-  --glass-blur: saturate(180%) blur(30px);
+  /* Glass has to be genuinely see-through to read as glass. The fill is light,
+     the blur does the work of keeping what is behind it unreadable, and the rim
+     is a bright gradient rather than a flat border - that highlight is what
+     makes it look like a lens catching light instead of tinted plastic. */
+  --glass-fill: rgba(255, 255, 255, .68);
+  --glass-rim-top: rgba(255, 255, 255, .95);
+  --glass-rim-bottom: rgba(255, 255, 255, .18);
+  --glass-hairline: rgba(255, 255, 255, .45);
+  --glass-lift: 0 14px 40px rgba(24, 24, 52, .16), 0 3px 10px rgba(24, 24, 52, .08);
+  --glass-blur: saturate(200%) blur(28px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,29 +32,52 @@
     --primary: #818cf8;
     --primary-soft: #23233a;
     --danger: #f87171;
-    --bg: #0c0c11;
-    --surface: #17171f;
+    --bg: #0b0b13;
+    --surface: #191926;
     --text: #f2f2f6;
     --muted: #9a9aab;
-    --line: #26262f;
+    --line: #2b2b3a;
     --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
 
-    --glass-fill: rgba(26, 26, 34, .93);
-    --glass-edge: rgba(255, 255, 255, .14);
-    --glass-hairline: rgba(255, 255, 255, .08);
-    --glass-lift: 0 10px 34px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .35);
+    /* On dark the glass must be LIGHTER than the page behind it, the way frosted
+       glass catches light. Matching the background is what made it read as a
+       flat slab. */
+    --glass-fill: rgba(78, 78, 100, .55);
+    --glass-rim-top: rgba(255, 255, 255, .38);
+    --glass-rim-bottom: rgba(255, 255, 255, .04);
+    --glass-hairline: rgba(255, 255, 255, .14);
+    --glass-lift: 0 14px 40px rgba(0, 0, 0, .58), 0 3px 10px rgba(0, 0, 0, .4);
   }
 }
 
 /* One place to apply the material, so every glass surface stays consistent. */
-.glass {
+.glass,
+.app-header,
+.tabbar {
   background: var(--glass-fill);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  border: 0.5px solid var(--glass-hairline);
-  /* The inset highlight is the specular edge - it is what stops the surface
-     reading as flat translucent plastic. */
-  box-shadow: var(--glass-lift), inset 0 0.5px 0 var(--glass-edge);
+  box-shadow: var(--glass-lift);
+  position: relative;
+}
+
+/* The specular rim: a 1px gradient border, bright at the top where light would
+   land and fading away underneath. Painted with a masked pseudo-element rather
+   than `border`, so it can be a gradient rather than one flat colour. */
+.glass::after,
+.app-header::after,
+.tabbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, var(--glass-rim-top), var(--glass-rim-bottom) 55%, transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* Two ways the blur can be absent: the engine lacks it, or the reader has asked
@@ -119,14 +147,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-bottom: 0.5px solid var(--glass-hairline);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .app-header { background: var(--surface); }
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 12px;
 }
 
 .date-title {
@@ -236,6 +257,9 @@ button {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  .card, .hero-card, .stat-tile { border: 0.5px solid rgba(255, 255, 255, .06); }
 }
 
 .chart-card { padding: 10px 8px 6px; }
@@ -566,7 +590,7 @@ button {
     linear-gradient(170deg, rgba(139, 148, 255, .96) 0%, rgba(79, 70, 229, .96) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   backdrop-filter: blur(14px) saturate(160%);
-  border: 0.5px solid rgba(255, 255, 255, .34);
+  border: 0.5px solid rgba(255, 255, 255, .42);
   color: #fff;
   font-size: 40px;
   font-weight: 300;
@@ -574,7 +598,8 @@ button {
   box-shadow:
     0 12px 30px rgba(79, 70, 229, .42),
     0 2px 6px rgba(20, 20, 40, .16),
-    inset 0 1px 0 rgba(255, 255, 255, .5);
+    inset 0 1.5px 0 rgba(255, 255, 255, .62),
+    inset 0 -1px 6px rgba(40, 30, 120, .28);
   transition: transform .16s ease, box-shadow .16s ease;
 }
 .fab:active {
@@ -616,16 +641,8 @@ button {
   bottom: calc(env(safe-area-inset-bottom) + 10px);
   display: flex;
   padding: 7px 6px;
-  border-radius: 28px;
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 0.5px solid var(--glass-hairline);
-  box-shadow: var(--glass-lift), inset 0 0.5px 0 var(--glass-edge);
+  border-radius: 30px;
   z-index: 20;
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .tabbar { background: var(--surface); }
 }
 
 .tab {
@@ -647,7 +664,13 @@ button {
   color: var(--primary);
   background: var(--primary-soft);
 }
-.tab-icon { font-size: 17px; line-height: 1; }
+/* Stroked SVG rather than a Unicode glyph: consistent weight across platforms,
+   and it inherits the tab's colour on selection. */
+.tab-icon {
+  width: 23px;
+  height: 23px;
+  display: block;
+}
 
 /* ---------- Add sheet ---------- */
 .sheet-backdrop {
