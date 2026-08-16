@@ -1055,8 +1055,8 @@ function renderShortcutHelp() {
   const s = Store.getSettings();
   const connected = Sync.isConfigured();
   el('shortcutIntro').textContent = connected
-    ? 'Your shortcut can write straight to the sheet — nothing opens, nothing flashes up. Tappy picks the expense up next time it syncs.'
-    : 'Right now a shortcut has to open Tappy for a moment to save. Connect a Google Sheet above and it can save silently in the background instead.';
+    ? 'Your shortcut can write straight to the sheet — nothing opens, nothing flashes up. Tracky picks the expense up next time it syncs.'
+    : 'Right now a shortcut has to open Tracky for a moment to save. Connect a Google Sheet above and it can save silently in the background instead.';
   // Prefer the append-only token here: this address goes into a shortcut, and
   // shortcut URLs are the one place the secret is visible.
   el('quickUrl').textContent = connected
@@ -1144,7 +1144,7 @@ function downloadFile(filename, content, type) {
 
 function downloadBackup() {
   downloadFile(
-    `tappy-backup-${todayStr()}.json`,
+    `tracky-backup-${todayStr()}.json`,
     JSON.stringify(Store.exportData(), null, 2),
     'application/json'
   );
@@ -1152,7 +1152,7 @@ function downloadBackup() {
 
 function downloadCsv() {
   // The BOM makes Excel read it as UTF-8 rather than mangling the currency sign.
-  downloadFile(`tappy-${todayStr()}.csv`, `﻿${Store.exportCsv()}`, 'text/csv;charset=utf-8');
+  downloadFile(`tracky-${todayStr()}.csv`, `﻿${Store.exportCsv()}`, 'text/csv;charset=utf-8');
   toast('CSV exported');
 }
 
@@ -1218,7 +1218,7 @@ function handleImport(file) {
     try {
       const parsed = JSON.parse(reader.result);
       const count = Array.isArray(parsed.expenses) ? parsed.expenses.length : 0;
-      if (!window.confirm(`Restore ${count} expenses?\n\nThis REPLACES everything currently in Tappy.`)) return;
+      if (!window.confirm(`Restore ${count} expenses?\n\nThis REPLACES everything currently in Tracky.`)) return;
       Store.importData(parsed);
       renderAll();
       renderSettings();

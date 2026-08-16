@@ -1,7 +1,23 @@
-// On-device storage for Tappy. Everything lives under one localStorage key so
+// On-device storage for Tracky. Everything lives under one localStorage key so
 // the app needs no backend and works fully offline.
 const Store = (() => {
-  const STORAGE_KEY = 'tappy.v1';
+  const STORAGE_KEY = 'tracky.v1';
+  // The app was called Tappy before. Anything logged under the old key is
+  // carried across once, so renaming the app never costs anyone their history.
+  const LEGACY_STORAGE_KEY = 'tappy.v1';
+
+  function migrateLegacyKey() {
+    try {
+      if (localStorage.getItem(STORAGE_KEY) !== null) return;
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy === null) return;
+      localStorage.setItem(STORAGE_KEY, legacy);
+      // The old key is left in place rather than removed, so an older build
+      // opened by mistake still finds its data instead of showing nothing.
+    } catch (err) {
+      /* storage unavailable (private mode); nothing to migrate */
+    }
+  }
 
   // Money is stored as an integer count of minor units (paise / cents).
   // Repeated float addition loses precision (0.1 + 0.2 !== 0.3), which shows up
@@ -105,6 +121,7 @@ const Store = (() => {
 
   function load() {
     try {
+      migrateLegacyKey();
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return freshData();
       const data = JSON.parse(raw);
@@ -571,7 +588,7 @@ const Store = (() => {
   function exportData() {
     const data = load();
     return {
-      app: 'tappy',
+      app: 'tracky',
       version: 1,
       exportedAt: new Date().toISOString(),
       expenses: data.expenses,
@@ -606,8 +623,9 @@ const Store = (() => {
   }
 
   function importData(parsed) {
-    if (!parsed || parsed.app !== 'tappy' || !Array.isArray(parsed.expenses)) {
-      throw new Error('Not a valid Tappy backup file.');
+    // Backups written before the rename say 'tappy'; still accept them.
+    if (!parsed || !['tracky', 'tappy'].includes(parsed.app) || !Array.isArray(parsed.expenses)) {
+      throw new Error('Not a valid Tracky backup file.');
     }
     const data = load();
     data.expenses = parsed.expenses.map(normalizeExpense).filter((e) => e.id && e.date);

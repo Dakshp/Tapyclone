@@ -1,6 +1,6 @@
 {
-  "name": "Tappy",
-  "short_name": "Tappy",
+  "name": "Tracky",
+  "short_name": "Tracky",
   "description": "Fast daily expense tracker that works offline",
   "start_url": "./",
   "scope": "./",

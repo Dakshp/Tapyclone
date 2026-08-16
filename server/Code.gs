@@ -1,7 +1,7 @@
 /**
- * Tappy sync backend — Google Apps Script + Google Sheet.
+ * Tracky sync backend — Google Apps Script + Google Sheet.
  *
- * Deploy this as a Web App (see server/README.md). It gives Tappy three things:
+ * Deploy this as a Web App (see server/README.md). It gives Tracky three things:
  *   1. a place expenses live that is not one phone's browser storage
  *   2. sync between devices
  *   3. a URL an iOS Shortcut can POST to WITHOUT opening the app
@@ -18,7 +18,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// SET THIS. Any random hard-to-guess string; paste the same one into Tappy.
+// SET THIS. Any random hard-to-guess string; paste the same one into Tracky.
 // This one can read and change everything, so it is only ever sent inside a
 // POST body, never in a URL.
 var TOKEN = 'CHANGE-ME-TO-A-LONG-RANDOM-STRING';
@@ -244,7 +244,7 @@ function doGet(e) {
   if (!authed_(p.token)) return json_({ ok: false, error: 'bad token' });
 
   if (action === 'ping') {
-    return json_({ ok: true, service: 'tappy', serverTime: nowIso_() });
+    return json_({ ok: true, service: 'tracky', serverTime: nowIso_() });
   }
 
   if (action === 'pull') {

@@ -5,12 +5,12 @@ About ten minutes, all in the browser — no installs, no command line.
 Once this is done:
 
 - your expenses live in a Google Sheet you own and can open like any spreadsheet
-- every device running Tappy shows the same data
+- every device running Tracky shows the same data
 - an iOS Shortcut can log an expense **without opening the app at all**
 
 ## 1. Make the sheet
 
-1. Go to <https://sheets.new> and give it a name, e.g. **Tappy Data**.
+1. Go to <https://sheets.new> and give it a name, e.g. **Tracky Data**.
 2. You do not need to add any columns — the script creates them.
 
 ## 2. Add the script
@@ -79,9 +79,9 @@ single sheet. Two scoped tokens is the safer trade here.
 > use it. The URL is unguessable and the token is the real lock — which is why
 > it needs to be long and random.
 
-## 4. Connect Tappy
+## 4. Connect Tracky
 
-1. Open Tappy → **Settings → Sync to a Google Sheet**.
+1. Open Tracky → **Settings → Sync to a Google Sheet**.
 2. Paste the **Web app URL** and the **token**.
 3. Tap **Check connection**, then **Sync now**.
 
@@ -90,16 +90,16 @@ Existing expenses on the phone are uploaded on that first sync; nothing is lost.
 ## 5. The shortcut that never opens the app
 
 With sync connected, Settings → **Quick add shortcut** shows an address pointing
-at your sheet rather than at Tappy. Build the shortcut as listed there, and for
+at your sheet rather than at Tracky. Build the shortcut as listed there, and for
 the last step use **Get Contents of URL** instead of *Open URLs* — that runs in
-the background, so nothing appears on screen at all. Tappy picks the expense up
+the background, so nothing appears on screen at all. Tracky picks the expense up
 the next time it is opened.
 
 ## Re-deploying after an edit
 
 If you ever change `Code.gs`, use **Deploy → Manage deployments → edit (pencil)
 → Version: New version → Deploy**. Creating a brand new deployment instead would
-give you a different URL, which you would then have to re-paste into Tappy.
+give you a different URL, which you would then have to re-paste into Tracky.
 
 ## What the sheet looks like
 
@@ -120,7 +120,7 @@ One row per expense, in a tab called **Expenses**:
 You can. Fill in just **date**, **amountMinor** and **category** on a new row and
 leave the rest blank — the script fills in `uid` and the timestamps for you the
 next time any device syncs, and the expense then appears in the app. The category
-can be a name as you see it in Tappy ("Food & Drink"); it is matched up for you.
+can be a name as you see it in Tracky ("Food & Drink"); it is matched up for you.
 
 Remember `amountMinor` is paise: type `44400` for ₹444.
 
@@ -135,13 +135,13 @@ A minute, once you are connected:
 1. In the sheet, add a row filling in only **date** (today), **amountMinor**
    (`12300` for ₹123) and **category** (`Food & Drink`). Leave every other cell
    empty.
-2. In Tappy: **Settings → Sync now**.
+2. In Tracky: **Settings → Sync now**.
 3. The line under the buttons should read *"…Last sync brought back 1 expense."*
 4. Open **Today** — ₹123 is in the list.
 
 Then the other direction:
 
-5. Add an expense in Tappy, tap **Sync now**, and look at the sheet. A new row
+5. Add an expense in Tracky, tap **Sync now**, and look at the sheet. A new row
    appears, with `uid` and the timestamps filled in.
 
 If step 3 says *"Everything was already up to date"*, the row was not picked up —
@@ -156,9 +156,9 @@ Deploy → Manage deployments → edit → change it → New version → Deploy.
 **"The sync address did not return data."** Same cause: Google is returning a
 sign-in page instead of your script.
 
-**"That sync token was rejected."** The token in Tappy does not match `TOKEN` in
+**"That sync token was rejected."** The token in Tracky does not match `TOKEN` in
 the script — check for a stray space, and remember to re-deploy a new version
 after changing it.
 
 **Expenses are not appearing on the other phone.** Both need the same URL and
-token, and Tappy syncs when opened — reopen it, or tap **Sync now**.
+token, and Tracky syncs when opened — reopen it, or tap **Sync now**.

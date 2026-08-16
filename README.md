@@ -1,4 +1,4 @@
-# Tappy
+# Tracky
 
 A fast daily expense tracker. Log a spend in about three taps, see where the
 money went, and stay inside a monthly budget.
