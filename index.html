@@ -109,6 +109,22 @@
         <h2 id="seriesHead">Month by month</h2>
         <button class="link-btn" id="tableToggle" aria-expanded="false">Show table</button>
       </div>
+      <!-- Day zoom gets a month calendar instead of seven bars: a month at a
+           glance, in the shape everyone already reads dates in. -->
+      <div class="card calendar-card hidden" id="calendarCard">
+        <div class="cal-head">
+          <button class="cal-nav" id="calPrev" type="button" aria-label="Earlier month">&#8249;</button>
+          <span class="cal-month" id="calMonth"></span>
+          <button class="cal-nav" id="calNext" type="button" aria-label="Later month">&#8250;</button>
+        </div>
+        <div class="cal-dows" id="calDows" aria-hidden="true"></div>
+        <div class="cal-grid" id="calGrid" role="grid" aria-label="Spending by day"></div>
+        <div class="cal-foot">
+          <span class="cal-scale" id="calScale"></span>
+          <span class="cal-note">Swipe for other months</span>
+        </div>
+      </div>
+
       <div class="card chart-card">
         <div class="chart-wrap">
           <svg id="periodSvg" role="img" aria-label="Spending by period"></svg>
@@ -245,6 +261,10 @@
       <div class="card">
         <p class="hint">Tracky is a fast daily expense tracker. It runs entirely offline and keeps your data private on your device.</p>
         <p class="hint">On iPhone: open in Safari, tap Share, then <strong>Add to Home Screen</strong> to install it like a real app.</p>
+        <!-- Visible on purpose. Without it there is no way to tell a fixed build
+             from a cached one, and "it still does not work" cannot be answered. -->
+        <p class="hint" id="buildInfo"></p>
+        <button class="btn-secondary" id="updateBtn">Check for update</button>
       </div>
     </div>
   </section>
@@ -339,7 +359,26 @@
 <script>
   // The service worker only makes sense over http(s); skip it on file://.
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Whether this page is already being served by a worker. On the very first
+    // visit it is not, and the worker taking over is not an update.
+    var hadWorker = Boolean(navigator.serviceWorker.controller);
+    var reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      // A new worker has taken over, which means the files on disk are now the
+      // new build while this page is still running the old one. Reloading here
+      // is what makes an update land on THIS open instead of the next one.
+      if (!hadWorker || reloading) return;
+      reloading = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      // Look for a new build every time the app is opened or brought forward,
+      // rather than only when the browser happens to check.
+      reg.update().catch(function () {});
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) reg.update().catch(function () {});
+      });
+    }).catch(function () {});
   }
 </script>
 </body>

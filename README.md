@@ -51,8 +51,10 @@ Once installed it works with no connection at all.
 - **Monthly budget** that tells you what is left *and* what that works out to
   per day for the rest of the month, so overspending shows up early.
 - **Compare** — an interactive dashboard that zooms out in four steps:
-  **Day → Week → Month → Year**, starting on Day. Swipe the chart or tap a bar
-  to pick a period; focus a single category to rescope the whole screen. Under
+  **Day → Week → Month → Year**, starting on Day. Day zoom is a **month
+  calendar**: every day of the month shaded by what was spent on it, swipe for
+  other months, tap a day to look at it. Week, month and year stay bars. Swipe
+  the chart or tap a bar to pick a period; focus a single category to rescope the whole screen. Under
   the chart, **where it went** breaks the period down by category with each
   one's share of the total, and **Entries** lists the actual expenses behind
   every figure — editable in place, exactly like the Today list, and changing
@@ -276,6 +278,47 @@ so the interface leans plain:
   app file changes**, otherwise installed copies keep serving the old version.
 - `icons/` — generated, not hand-drawn; see the icon script in the project
   history if they need regenerating.
+
+## Updates
+
+The app serves itself from its own cache, which is what makes it open instantly
+and work offline — and also what can leave a published fix unseen. Two things
+keep that honest:
+
+- The shell is cached with `cache: 'reload'`, bypassing the browser's own HTTP
+  cache. GitHub Pages serves these files with a ten-minute `max-age`, so a plain
+  `addAll` could refill a brand new cache with the same stale copies it was
+  created to replace.
+- When a new worker takes over, the page **reloads itself**, so an update lands
+  on the open you are in rather than the next one. It checks on launch and every
+  time the app comes back to the foreground.
+
+**Settings → About shows the version number**, and there is a *Check for update*
+button beside it. Without a visible version there is no way to tell a fixed build
+from a cached one, and "it still doesn't work" cannot be answered. Bump
+`APP_VERSION` in `app.js` and `CACHE` in `sw.js` together on every release.
+
+## The calendar
+
+At day zoom the seven bars are replaced by a month grid — the shape everyone
+already reads dates in, and one that makes the shape of a month visible:
+weekends, the gap after payday, the run of quiet days.
+
+Shading is **four flat steps, not a gradient**. A smooth ramp asks the reader to
+rank shades against each other; four levels can be told apart at a glance. Any
+day with spending is at least step 1, so a small day never disappears into the
+empty ones, and the scale is written underneath in words — the wording flips
+between "darker" and "brighter" with the theme, because the ramp runs towards
+deep indigo on a light page and pale indigo on a dark one.
+
+Today is **outlined** and the selection is **filled**: two different marks, so
+"where I am" and "what I am looking at" never have to be told apart by shade.
+Days that have not happened are greyed and cannot be selected — a day with no
+spending yet is not a day with nothing spent.
+
+Swiping moves a whole month and keeps the day of the month, so the figures below
+stay about a comparable day rather than jumping to the 1st. The header arrows
+still step a single day, so both scales are reachable.
 
 ## Backing up
 

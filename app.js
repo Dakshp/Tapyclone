@@ -1,3 +1,7 @@
+// Shown in Settings. Bump it and sw.js's CACHE together on every release - the
+// two are what tell a fixed build apart from a cached one.
+const APP_VERSION = 12;
+
 const state = {
   date: todayStr(),
   category: 'food',
@@ -545,6 +549,135 @@ function movePeriod(delta) {
   renderCompare();
 }
 
+// ---------- Calendar ----------
+
+// Four steps rather than a continuous ramp. A smooth gradient asks the reader to
+// judge shades against each other; four levels can be told apart at a glance and
+// each one is a plain sentence - nothing, a little, more, most.
+const CAL_STEPS = 4;
+
+function monthOf(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+function lastDayOfMonth(month) {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/**
+ * Move the calendar a whole month, keeping the day of the month where possible.
+ *
+ * Keeping the day is what makes the selection survive the scroll: land on the
+ * 3rd of the next month rather than resetting to the 1st, so the figures below
+ * stay about a comparable day instead of jumping somewhere arbitrary.
+ */
+function moveCalendarMonth(delta) {
+  const [y, m, d] = compare.period.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + delta, 1));
+  const month = target.toISOString().slice(0, 7);
+  const today = todayStr();
+
+  // Nothing has been spent in the future, so a month past this one is refused
+  // outright and the current month stops at today.
+  if (month > monthOf(today)) return;
+  let day = Math.min(d, lastDayOfMonth(month));
+  let next = `${month}-${String(day).padStart(2, '0')}`;
+  if (next > today) next = today;
+
+  compare.period = next;
+  compare.anchor = next;
+  renderCompare();
+}
+
+function renderCalendar(data) {
+  const card = el('calendarCard');
+  const isDay = data.granularity === 'day';
+  card.classList.toggle('hidden', !isDay);
+  el('chartNote').parentElement.classList.toggle('hidden', isDay);
+  if (!isDay) return;
+
+  const month = monthOf(data.period);
+  const today = todayStr();
+  el('calMonth').textContent = formatMonthTitle(month);
+  el('calNext').disabled = month >= monthOf(today);
+
+  // Weekday initials come from the browser rather than a hard-coded list, so a
+  // phone set to another language gets its own.
+  const dows = el('calDows');
+  dows.innerHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const cell = document.createElement('span');
+    // 2024-01-01 was a Monday, which is the column the grid starts on.
+    cell.textContent = new Date(Date.UTC(2024, 0, 1 + i))
+      .toLocaleDateString(undefined, { weekday: 'narrow', timeZone: 'UTC' });
+    dows.appendChild(cell);
+  }
+
+  const days = lastDayOfMonth(month);
+  const totals = Store.getDailyTotals(days, `${month}-${String(days).padStart(2, '0')}`);
+  const byDate = Object.fromEntries(totals.map((t) => [t.date, t.totalMinor]));
+  const spent = totals.map((t) => t.totalMinor).filter((v) => v > 0);
+  const max = Math.max(...spent, 1);
+
+  const grid = el('calGrid');
+  grid.innerHTML = '';
+
+  // Monday-first, matching the week granularity elsewhere in the app.
+  const firstDow = (new Date(Date.UTC(...month.split('-').map(Number), 1)).getUTCDay() + 6) % 7;
+  for (let i = 0; i < firstDow; i++) {
+    const blank = document.createElement('span');
+    blank.className = 'cal-blank';
+    grid.appendChild(blank);
+  }
+
+  for (let d = 1; d <= days; d++) {
+    const date = `${month}-${String(d).padStart(2, '0')}`;
+    const amount = byDate[date] || 0;
+    const future = date > today;
+
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cal-day';
+    cell.dataset.date = date;
+    cell.disabled = future;
+
+    // Step 0 is genuinely nothing; anything spent is at least step 1, so a small
+    // day never disappears into the empty ones.
+    const step = amount > 0 ? Math.max(1, Math.ceil((amount / max) * (CAL_STEPS - 1))) : 0;
+    cell.dataset.level = future ? 'future' : String(step);
+    if (date === today) cell.classList.add('is-today');
+    if (date === data.period) cell.classList.add('is-selected');
+
+    const num = document.createElement('span');
+    num.className = 'cal-num';
+    num.textContent = String(d);
+    cell.appendChild(num);
+
+    cell.setAttribute('aria-label', `${formatDayTitle(date)}: ${
+      future ? 'not yet' : amount > 0 ? formatMoney(amount, { compact: true }) : 'nothing spent'
+    }`);
+    if (date === data.period) cell.setAttribute('aria-current', 'date');
+
+    cell.addEventListener('click', () => {
+      if (Date.now() - lastChartSwipeAt < 400) return;
+      compare.period = date;
+      compare.anchor = date;
+      renderCompare();
+    });
+    grid.appendChild(cell);
+  }
+
+  // The scale is spelled out, because a shade on its own means nothing - and
+  // the direction is not the same in both themes: the ramp runs towards deep
+  // indigo on a light page and towards pale indigo on a dark one, so saying
+  // "darker" in dark mode would name the wrong end.
+  const dark = document.documentElement.dataset.theme === 'dark';
+  el('calScale').textContent = spent.length
+    ? `${dark ? 'Brighter' : 'Darker'} means more spent · up to ${formatMoney(max, { compact: true })} a day`
+    : 'Nothing spent this month';
+}
+
 function renderCompare() {
   populateFocusSelect();
   const data = Store.getComparison({
@@ -589,6 +722,7 @@ function renderCompare() {
     : entries;
 
   renderTiles(data);
+  renderCalendar(data);
   renderPeriodChart(data);
   renderCategoryCompare(data);
   renderEntries(data);
@@ -983,7 +1117,7 @@ function populateFocusSelect() {
 let wheelDx = 0;
 let wheelIdle = null;
 let wheelSpent = false;
-function onChartWheel(e) {
+function onWheelGesture(e, step) {
   // A mostly-vertical wheel is the page being scrolled; leave it alone.
   if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
   e.preventDefault();
@@ -993,9 +1127,9 @@ function onChartWheel(e) {
   clearTimeout(wheelIdle);
   wheelIdle = setTimeout(() => { wheelDx = 0; wheelSpent = false; }, 240);
 
-  // One gesture moves one period, however hard it was thrown. Letting the
-  // distance decide would hand control to the momentum tail, which can run for
-  // a second after the fingers are gone and would scroll off into last year.
+  // One gesture moves one step, however hard it was thrown. Letting the distance
+  // decide would hand control to the momentum tail, which can run for a second
+  // after the fingers are gone and would scroll off into last year.
   if (wheelSpent) return;
 
   wheelDx += e.deltaX;
@@ -1006,7 +1140,7 @@ function onChartWheel(e) {
   wheelSpent = true;
   lastChartSwipeAt = Date.now();
   hidePeriodTip();
-  movePeriod(wheelDx > 0 ? 1 : -1);
+  step(wheelDx > 0 ? 1 : -1);
   wheelDx = 0;
 }
 
@@ -1034,6 +1168,30 @@ function initCompareControls() {
 
   el('prevPeriod').addEventListener('click', () => movePeriod(-1));
   el('nextPeriod').addEventListener('click', () => movePeriod(1));
+
+  el('calPrev').addEventListener('click', () => moveCalendarMonth(-1));
+  el('calNext').addEventListener('click', () => moveCalendarMonth(1));
+
+  // The calendar scrolls by month, since a month is what it shows. The arrows
+  // in the header still step a single day, so both scales are reachable.
+  const cal = el('calendarCard');
+  onHorizontalSwipe(cal, {
+    threshold: 32,
+    onSwipe: (dir) => {
+      lastChartSwipeAt = Date.now();
+      moveCalendarMonth(dir);
+    },
+    onDrag: (dx, done) => {
+      if (done) {
+        cal.classList.remove('dragging');
+        cal.style.transform = '';
+        return;
+      }
+      cal.classList.add('dragging');
+      cal.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
+    },
+  });
+  cal.addEventListener('wheel', (e) => onWheelGesture(e, moveCalendarMonth), { passive: false });
 
   const chart = document.querySelector('#screen-stats .chart-card');
   const hero = document.querySelector('#screen-stats .hero-card');
@@ -1071,7 +1229,7 @@ function initCompareControls() {
     });
     // Same reason: end the gesture with no tooltip left hanging.
     target.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
-    target.addEventListener('wheel', onChartWheel, { passive: false });
+    target.addEventListener('wheel', (e) => onWheelGesture(e, movePeriod), { passive: false });
   });
 
   el('tableToggle').addEventListener('click', () => {
@@ -1425,9 +1583,35 @@ function renderSettings() {
   el('setSyncUrl').value = s.syncUrl;
   el('setSyncToken').value = s.syncToken;
   el('setSyncAddToken').value = s.syncAddToken;
+  el('buildInfo').textContent = `Version ${APP_VERSION}`;
   renderSyncStatus();
   renderShortcutHelp();
   renderCategoryManager();
+}
+
+// An installed app serves itself from its own cache, so a published fix can sit
+// unseen behind a stale copy. This asks for a fresh check now, and says what it
+// found rather than leaving the reader guessing.
+async function checkForUpdate() {
+  if (!('serviceWorker' in navigator)) {
+    toast('Updates only apply to the installed app');
+    return;
+  }
+  toast('Checking…');
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      toast('Not installed yet — reload the page');
+      return;
+    }
+    await reg.update();
+    // A waiting or installing worker means a newer build has been found; the
+    // page reloads itself as soon as that worker takes over.
+    if (reg.installing || reg.waiting) toast('New version found — updating…');
+    else toast(`Version ${APP_VERSION} is the latest`);
+  } catch (err) {
+    toast('Could not check — are you online?');
+  }
 }
 
 // The outcome of the last sync, kept on screen rather than only in a toast that
@@ -1741,6 +1925,7 @@ function init() {
   el('setCurrency').addEventListener('change', saveCurrency);
   el('setBudget').addEventListener('change', saveBudget);
   el('setBudget').addEventListener('blur', saveBudget);
+  el('updateBtn').addEventListener('click', checkForUpdate);
   el('exportBtn').addEventListener('click', downloadBackup);
   el('exportCsvBtn').addEventListener('click', downloadCsv);
   el('importBtn').addEventListener('click', () => el('importFile').click());

@@ -1,6 +1,6 @@
 // App-shell cache so Tracky opens instantly and works with no connection.
 // Bump CACHE whenever app files change - the old cache is then dropped.
-const CACHE = 'tracky-v11';
+const CACHE = 'tracky-v12';
 const SHELL = [
   './',
   './index.html',
@@ -15,7 +15,13 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  // cache: 'reload' bypasses the browser's own HTTP cache. GitHub Pages serves
+  // these files with a ten-minute max-age, so a plain addAll can refill a brand
+  // new cache with the SAME stale copies it was created to replace, and the app
+  // keeps serving an old build long after one was published.
+  event.waitUntil(
+    caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
+  );
   self.skipWaiting();
 });
 
