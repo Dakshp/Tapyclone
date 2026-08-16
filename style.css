@@ -273,7 +273,6 @@ button {
    direction never rests on colour alone. */
 :root {
   --viz-current: #4338ca;
-  --viz-previous: #818cf8;
   --viz-context: #bcbccf;
   --viz-axis: #d5d5de;
   --viz-ink: #14141a;
@@ -285,7 +284,6 @@ button {
 @media (prefers-color-scheme: dark) {
   :root {
     --viz-current: #a5b4fc;
-    --viz-previous: #4f46e5;
     --viz-context: #474756;
     --viz-axis: #3a3a46;
     --viz-ink: #f2f2f6;
@@ -390,14 +388,7 @@ button {
 .tone-down { color: var(--viz-down); }
 .tone-flat { color: var(--muted); }
 
-/* ---------- Legend ---------- */
-.viz-legend { display: flex; gap: 12px; align-items: center; }
-.legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
-.legend-dot { width: 9px; height: 9px; border-radius: 50%; display: block; }
-.legend-dot.db-prev { background: var(--viz-previous); }
-.legend-dot.db-cur { background: var(--viz-current); }
-
-/* ---------- Category comparison (dumbbell rows) ---------- */
+/* ---------- Category breakdown ---------- */
 .cmp-row {
   display: flex;
   flex-direction: column;
@@ -414,47 +405,36 @@ button {
 .cmp-head { display: flex; align-items: center; gap: 11px; }
 .cmp-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; }
 
-.dumbbell {
-  position: relative;
+/* A share of the period's total. One bar per row against a common track, so the
+   rows can be compared to each other by length as well as read as numbers. */
+.share-track {
   display: block;
-  height: 11px;
-  margin: 0 7px;
-}
-/* Track baseline */
-.dumbbell::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
+  height: 8px;
+  border-radius: 4px;
   background: var(--line);
+  overflow: hidden;
 }
-.db-line {
-  position: absolute;
-  top: 50%;
-  height: 2px;
-  transform: translateY(-50%);
-  background: var(--viz-previous);
-  border-radius: 2px;
+.share-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--viz-current);
 }
-.db-dot {
-  position: absolute;
-  top: 50%;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  /* 2px surface ring so the two dots stay distinct when they overlap */
-  box-shadow: 0 0 0 2px var(--surface);
-}
-.cmp-row.focused .db-dot { box-shadow: 0 0 0 2px var(--primary-soft); }
-.db-dot.db-prev { background: var(--viz-previous); }
-.db-dot.db-cur { background: var(--viz-current); z-index: 2; }
 
 .cmp-foot { display: flex; align-items: baseline; gap: 8px; }
-.delta-text { font-size: 12.5px; font-weight: 650; }
-.cmp-was { font-size: 12px; color: var(--muted); margin-left: auto; }
+.cmp-share { font-size: 12.5px; color: var(--muted); }
+
+/* ---------- Entries on the Compare screen ---------- */
+#cmpEntries { gap: 8px; }
+/* Only appears when the period spans more than one day, where the rows would
+   otherwise be a pile of amounts with no way to tell which day each is from. */
+.entry-day {
+  margin: 12px 4px 2px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.entry-day:first-child { margin-top: 2px; }
 
 /* ---------- Table view ---------- */
 .table-card { padding: 4px 0 12px; }
@@ -565,7 +545,8 @@ button {
    instead of sitting at it, so the card trails the finger by a frame and the
    gesture feels dead. It comes back for the snap once the finger lifts. */
 .chart-card.dragging { transition: none; }
-#screen-today .hero-card { touch-action: pan-y; }
+/* Both hero cards take a horizontal drag - days on Today, periods on Compare. */
+.hero-card { touch-action: pan-y; }
 
 .row-icon {
   width: 40px;

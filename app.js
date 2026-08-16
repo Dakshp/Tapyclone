@@ -467,6 +467,15 @@ function vsLabel(period, granularity) {
   return relative ? relative.toLowerCase() : periodLabel(period, granularity, 'plain');
 }
 
+// The period as it reads inside a sentence: "today", "on Wednesday, 12 August",
+// "in August 2026". A relative name is already a phrase and takes no
+// preposition - "nothing logged in today" is not English.
+function periodPhrase(period, granularity) {
+  const relative = relativePeriodName(period, granularity);
+  if (relative) return relative.toLowerCase();
+  return `${granularity === 'day' ? 'on' : 'in'} ${periodLabel(period, granularity, 'plain')}`;
+}
+
 // A date that sits inside the period, used to carry the selection across a
 // granularity switch (today wins when the period contains it).
 function representativeDate(period, granularity) {
@@ -518,6 +527,13 @@ function renderCompare() {
     span: SPAN[compare.granularity],
   });
 
+  // A re-render always lands the chart at rest. A gesture that is interrupted -
+  // by the app being backgrounded mid-drag, say - would otherwise leave the card
+  // sitting a few pixels off-centre with no gesture left to put it back.
+  const chartCard = document.querySelector('#screen-stats .chart-card');
+  chartCard.classList.remove('dragging');
+  chartCard.style.transform = '';
+
   el('periodTitle').textContent = periodLabel(data.period, data.granularity);
   el('seriesHead').textContent = `${UNIT_NAME[data.granularity]} by ${UNIT_NAME[data.granularity].toLowerCase()}`;
 
@@ -538,6 +554,7 @@ function renderCompare() {
   renderTiles(data);
   renderPeriodChart(data);
   renderCategoryCompare(data);
+  renderEntries(data);
   renderTableView(data);
 }
 
@@ -695,35 +712,36 @@ function hidePeriodTip() {
   el('periodTip').classList.add('hidden');
 }
 
+/**
+ * Where the money went in the selected period: one row per category, its share
+ * of the total, and the amount.
+ *
+ * This replaced a dumbbell plot of "last period vs this period". On a month or
+ * a year that comparison was informative; on a single day - which is where the
+ * screen opens - it was noise. "Food & Drink, down 50" reads as a finding, when
+ * all it means is that yesterday happened to include a tea and today did not.
+ * A share of the total says something true at every zoom level.
+ */
 function renderCategoryCompare(data) {
-  const legend = el('cmpLegend');
-  legend.innerHTML = '';
   const box = el('categoryCompare');
   box.innerHTML = '';
+  el('cmpShareNote').textContent = '';
 
-  if (!data.categories.length) {
+  // The dumbbell needed both periods; a share needs only this one, so rows that
+  // are empty now are simply absent rather than sitting at zero.
+  const rows = data.categories.filter((c) => c.currentMinor > 0);
+
+  if (!rows.length) {
     box.innerHTML = '<p class="empty-msg">Nothing logged in this period.</p>';
     return;
   }
 
-  // Two series on the plot, so a legend is always present.
-  [
-    ['db-prev', periodLabel(data.previousPeriod, data.granularity, 'short')],
-    ['db-cur', periodLabel(data.period, data.granularity, 'short')],
-  ].forEach(([cls, text]) => {
-    const item = document.createElement('span');
-    item.className = 'legend-item';
-    const dot = document.createElement('span');
-    dot.className = `legend-dot ${cls}`;
-    const name = document.createElement('span');
-    name.textContent = text;
-    item.append(dot, name);
-    legend.appendChild(item);
-  });
+  el('cmpShareNote').textContent = `${rows.length} ${rows.length === 1 ? 'category' : 'categories'}`;
+  const total = rows.reduce((sum, c) => sum + c.currentMinor, 0) || 1;
 
-  const max = Math.max(...data.categories.flatMap((c) => [c.currentMinor, c.previousMinor]), 1);
+  rows.forEach((c) => {
+    const pct = (c.currentMinor / total) * 100;
 
-  data.categories.forEach((c) => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'cmp-row';
@@ -744,32 +762,21 @@ function renderCategoryCompare(data) {
     amount.textContent = formatMoney(c.currentMinor, { compact: true });
     head.append(icon, name, amount);
 
-    const pPct = (c.previousMinor / max) * 100;
-    const cPct = (c.currentMinor / max) * 100;
     const track = document.createElement('span');
-    track.className = 'dumbbell';
-    const line = document.createElement('span');
-    line.className = 'db-line';
-    line.style.left = `${Math.min(pPct, cPct)}%`;
-    line.style.width = `${Math.abs(cPct - pPct)}%`;
-    const prevDot = document.createElement('span');
-    prevDot.className = 'db-dot db-prev';
-    prevDot.style.left = `${pPct}%`;
-    const curDot = document.createElement('span');
-    curDot.className = 'db-dot db-cur';
-    curDot.style.left = `${cPct}%`;
-    track.append(line, prevDot, curDot);
+    track.className = 'share-track';
+    const fill = document.createElement('span');
+    fill.className = 'share-fill';
+    fill.style.width = `${Math.max(pct, 2)}%`;
+    track.appendChild(fill);
 
     const foot = document.createElement('span');
     foot.className = 'cmp-foot';
-    const di = deltaInfo(c.deltaMinor, data.hasPrevious);
-    const delta = document.createElement('span');
-    delta.className = `delta-text tone-${di.tone}`;
-    delta.textContent = di.text;
-    const was = document.createElement('span');
-    was.className = 'cmp-was';
-    was.textContent = `was ${formatMoney(c.previousMinor, { compact: true })}`;
-    foot.append(delta, was);
+    const share = document.createElement('span');
+    share.className = 'cmp-share';
+    // Rounded, but never to 0% - a category that is present should not read as
+    // absent just because it is small.
+    share.textContent = `${Math.max(Math.round(pct), 1)}% of the total`;
+    foot.appendChild(share);
 
     row.append(head, track, foot);
     row.addEventListener('click', () => {
@@ -778,6 +785,42 @@ function renderCategoryCompare(data) {
       renderCompare();
     });
     box.appendChild(row);
+  });
+}
+
+/**
+ * The plain log behind the figures, for the selected period. It is the same row
+ * as the Today screen - same look, same swipe to edit or delete - because it is
+ * the same thing, just reached by picking a date on the chart instead of by
+ * stepping through days.
+ */
+function renderEntries(data) {
+  const box = el('cmpEntries');
+  box.innerHTML = '';
+
+  const focus = data.categoryId ? categoryMeta(data.categoryId) : null;
+  el('entriesHead').textContent = focus ? `${focus.label} entries` : 'Entries';
+  el('cmpEntryCount').textContent = data.entries.length
+    ? `${data.entries.length} ${data.entries.length === 1 ? 'entry' : 'entries'}`
+    : '';
+
+  if (!data.entries.length) {
+    box.innerHTML = `<p class="empty-msg">Nothing logged ${periodPhrase(data.period, data.granularity)}.</p>`;
+    return;
+  }
+
+  // A single day needs no date headings; anything wider does, or the rows are
+  // just a pile of amounts with no way to tell which day each belongs to.
+  let lastDate = data.granularity === 'day' ? data.period : null;
+  data.entries.forEach((e) => {
+    if (e.date !== lastDate) {
+      lastDate = e.date;
+      const head = document.createElement('p');
+      head.className = 'entry-day';
+      head.textContent = formatDayTitle(e.date);
+      box.appendChild(head);
+    }
+    box.appendChild(buildExpenseRow(e));
   });
 }
 
@@ -830,19 +873,37 @@ function renderTableView(data) {
     )
   );
 
+  // Mirrors the breakdown above rather than the old before/after comparison, so
+  // the table is a readable twin of what is on screen and not a second, subtly
+  // different story.
+  const shown = data.categories.filter((c) => c.currentMinor > 0);
+  const catTotal = shown.reduce((sum, c) => sum + c.currentMinor, 0) || 1;
   const catCaption = document.createElement('p');
   catCaption.className = 'table-caption';
-  catCaption.textContent = `Categories · ${periodLabel(data.previousPeriod, data.granularity, 'short')} vs ${periodLabel(data.period, data.granularity, 'short')}`;
+  catCaption.textContent = `Where it went · ${periodLabel(data.period, data.granularity, 'short')}`;
   box.append(
     catCaption,
     buildTable(
-      ['Category', 'Before', 'Now', 'Change'],
-      data.categories.map((c) => [
+      ['Category', 'Spent', 'Share'],
+      shown.map((c) => [
         c.label,
-        formatMoney(c.previousMinor),
         formatMoney(c.currentMinor),
-        deltaInfo(c.deltaMinor, data.hasPrevious).text,
+        `${Math.max(Math.round((c.currentMinor / catTotal) * 100), 1)}%`,
       ])
+    )
+  );
+
+  const entryCaption = document.createElement('p');
+  entryCaption.className = 'table-caption';
+  entryCaption.textContent = 'Every entry';
+  box.append(
+    entryCaption,
+    buildTable(
+      ['When', 'What', 'Amount'],
+      data.entries.map((e) => {
+        const meta = categoryMeta(e.category);
+        return [formatDayTitle(e.date), e.note || meta.label, formatMoney(e.amountMinor)];
+      })
     )
   );
 }
@@ -896,34 +957,42 @@ function initCompareControls() {
   el('nextPeriod').addEventListener('click', () => movePeriod(1));
 
   const chart = document.querySelector('#screen-stats .chart-card');
-  onHorizontalSwipe(chart, {
-    // Lower than the default: the chart is a wide target with nothing else
-    // competing for a horizontal drag, so a short flick should already count.
-    threshold: 32,
-    // Dragging left moves forward in time, matching the direction the timeline
-    // runs and how paged iOS views behave.
-    onSwipe: (dir) => {
-      lastChartSwipeAt = Date.now();
-      movePeriod(dir);
-    },
-    onDrag: (dx, done) => {
-      if (done) {
-        // Restore the snap-back transition only once the finger is gone.
-        chart.classList.remove('dragging');
-        chart.style.transform = '';
-        return;
-      }
-      // While dragging, the transition would lag a frame behind the finger and
-      // make the gesture feel unresponsive.
-      chart.classList.add('dragging');
-      chart.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
-      // A touch fires pointerenter on a bar but never pointerleave, so without
-      // this the tooltip sticks open for the whole gesture.
-      hidePeriodTip();
-    },
+  const hero = document.querySelector('#screen-stats .hero-card');
+
+  // Both the chart and the headline above it accept the gesture. One target is
+  // easy to miss on a phone, and the headline is about the same period anyway,
+  // so a swipe that lands slightly high should still work. Only the chart is
+  // dragged, though - it is the thing that visibly moves through time.
+  [chart, hero].forEach((target) => {
+    onHorizontalSwipe(target, {
+      // Lower than the default: these are wide targets with nothing else
+      // competing for a horizontal drag, so a short flick should already count.
+      threshold: 32,
+      // Dragging left moves forward in time, matching the direction the timeline
+      // runs and how paged iOS views behave.
+      onSwipe: (dir) => {
+        lastChartSwipeAt = Date.now();
+        movePeriod(dir);
+      },
+      onDrag: (dx, done) => {
+        if (done) {
+          // Restore the snap-back transition only once the finger is gone.
+          chart.classList.remove('dragging');
+          chart.style.transform = '';
+          return;
+        }
+        // While dragging, the transition would lag a frame behind the finger and
+        // make the gesture feel unresponsive.
+        chart.classList.add('dragging');
+        chart.style.transform = `translateX(${Math.max(Math.min(dx * 0.5, 56), -56)}px)`;
+        // A touch fires pointerenter on a bar but never pointerleave, so without
+        // this the tooltip sticks open for the whole gesture.
+        hidePeriodTip();
+      },
+    });
+    // Same reason: end the gesture with no tooltip left hanging.
+    target.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
   });
-  // Same reason: end the gesture with no tooltip left hanging.
-  chart.addEventListener('touchend', () => setTimeout(hidePeriodTip, 900), { passive: true });
 
   el('tableToggle').addEventListener('click', () => {
     compare.showTable = !compare.showTable;

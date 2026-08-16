@@ -489,6 +489,12 @@ const Store = (() => {
       hasPrevious: Boolean(idx[previous]),
       biggest,
       dayCount,
+      // The actual expenses behind the headline, newest first. Every figure on
+      // this screen is derived from this list, so showing it is what lets
+      // someone check a total instead of taking it on trust.
+      entries: inPeriod.slice().sort((a, b) => (a.date === b.date
+        ? String(b.createdAt).localeCompare(String(a.createdAt))
+        : b.date.localeCompare(a.date))),
     };
   }
 

@@ -51,12 +51,13 @@ Once installed it works with no connection at all.
 - **Monthly budget** that tells you what is left *and* what that works out to
   per day for the rest of the month, so overspending shows up early.
 - **Compare** — an interactive dashboard that zooms out in four steps:
-  **Day → Week → Month → Year**, starting on Day. Tap any bar to compare that
-  period, or focus a single category to rescope the whole screen. Each category
-  gets a dumbbell showing where it sat last period and where it sits now, so
-  the direction of change is visible without reading a number. Below the chart,
-  **average a day** and **biggest single spend** put the headline in context.
-  Every plotted value is also available as a plain table.
+  **Day → Week → Month → Year**, starting on Day. Swipe the chart or tap a bar
+  to pick a period; focus a single category to rescope the whole screen. Under
+  the chart, **where it went** breaks the period down by category with each
+  one's share of the total, and **Entries** lists the actual expenses behind
+  every figure — editable in place, exactly like the Today list, and changing
+  as soon as you pick a different date. Every plotted value is also available
+  as a plain table.
 - **Eight currencies** with correctly localised formatting.
 - **Backup and restore** to a JSON file, plus a full erase.
 
@@ -108,11 +109,13 @@ the breakdown rather than silently dropped.
 
 ## Gestures
 
-- **Swipe the day card** left or right to move between days; **swipe the chart**
-  on the Compare screen to move between periods, at whichever zoom level is
-  selected. Dragging left moves forward in time, the direction the timeline
-  runs. The arrows stay, because a gesture is invisible and a first-time user
-  needs something to see.
+- **Swipe the day card** left or right to move between days; on the Compare
+  screen **swipe the chart or the headline above it** to move between periods,
+  at whichever zoom level is selected. Two targets rather than one, because a
+  single card is easy to miss on a phone and a swipe that lands slightly high
+  is still clearly about the same period. Dragging left moves forward in time,
+  the direction the timeline runs. The arrows stay, because a gesture is
+  invisible and a first-time user needs something to see.
 - **Swipe an expense left** to reveal **Edit** and **Delete** in place — the
   same pattern as Mail, with no intermediate menu to step through.
 
@@ -135,7 +138,8 @@ than like nothing happened:
 
 ## Editing an expense
 
-Tap any row on the Today screen, or use **Edit** from its swipe actions. The
+Tap any row on the Today screen or in the Compare screen's **Entries** list, or
+use **Edit** from its swipe actions. The
 sheet reopens prefilled, so you can fix the amount, move it to another category,
 change the note, or delete it.
 
@@ -182,7 +186,15 @@ so the interface leans plain:
 - Axis labels are words and numbers on two short lines — `Mon` over `11`,
   `Aug` rather than a bare `A`. Six or seven wide bars, never twelve slivers.
 - Changes are written out — "▲ ₹1,100 more compared with last month" — instead
-  of leaving the reader to subtract.
+  of leaving the reader to subtract. That comparison is made **once**, on the
+  headline. A per-category version of it used to sit below the chart as a
+  dumbbell plot, and it was removed: on a month it was informative, but the
+  screen opens on a single day, where "Food & Drink, down ₹50" reads as a
+  finding when all it means is that yesterday happened to include a tea and
+  today did not. A category's **share of the period** says something true at
+  every zoom level, so that is what is shown instead.
+- The real entries are on screen, not just the totals derived from them. A
+  figure you cannot check is a figure you have to trust.
 - A period with nothing in it says "Nothing spent" rather than showing ₹0.00 as
   though it were a measurement.
 - The add button is centred and oversized: it is the one action the app exists

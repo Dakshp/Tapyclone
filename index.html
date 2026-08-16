@@ -97,17 +97,25 @@
           <svg id="periodSvg" role="img" aria-label="Spending by period"></svg>
           <div class="viz-tip hidden" id="periodTip" role="status" aria-live="polite"></div>
         </div>
-        <p class="chart-note">Swipe the chart to move through time. Tap a bar to compare it.</p>
+        <p class="chart-note">Swipe to change period · tap a bar to pick one</p>
       </div>
 
       <!-- Supporting figures sit below the chart so the chart stays above the fold. -->
       <div class="stat-tiles" id="cmpTiles"></div>
 
       <div class="section-head">
-        <h2>Category change</h2>
-        <span class="viz-legend" id="cmpLegend"></span>
+        <h2>Where it went</h2>
+        <span class="section-count" id="cmpShareNote"></span>
       </div>
       <div class="card" id="categoryCompare"></div>
+
+      <!-- The individual expenses behind every figure above, so a total can be
+           checked rather than trusted. Editable in place, like the Today list. -->
+      <div class="section-head">
+        <h2 id="entriesHead">Entries</h2>
+        <span class="section-count" id="cmpEntryCount"></span>
+      </div>
+      <div class="expense-list" id="cmpEntries"></div>
 
       <div class="section-head hidden" id="tableHead"><h2>All values</h2></div>
       <div class="card table-card hidden" id="tableView"></div>
