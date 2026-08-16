@@ -156,6 +156,15 @@
           <span>Token</span>
           <input type="text" id="setSyncToken" placeholder="the token you set in the script" autocomplete="off" spellcheck="false">
         </label>
+        <label class="field">
+          <span>Shortcut token</span>
+          <input type="text" id="setSyncAddToken" placeholder="optional — add-only" autocomplete="off" spellcheck="false">
+        </label>
+        <p class="hint">
+          The shortcut token can only <em>add</em> expenses — it cannot read or change anything.
+          Set a different random string for it in the script, since a shortcut has to carry its
+          token in a URL. Leave blank to use the main token instead.
+        </p>
         <button class="btn-secondary" id="syncTestBtn">Check connection</button>
         <button class="btn-secondary" id="syncNowBtn">Sync now</button>
         <p class="hint" id="syncStatus"></p>

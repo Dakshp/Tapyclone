@@ -33,6 +33,7 @@ const Store = (() => {
     // Sync is off until a Web App URL and token are entered in Settings.
     syncUrl: '',
     syncToken: '',
+    syncAddToken: '',
     lastSyncAt: '',
   };
 
@@ -489,6 +490,7 @@ const Store = (() => {
       monthlyBudgetMinor: Math.max(0, budget),
       syncUrl: str(s.syncUrl),
       syncToken: str(s.syncToken),
+      syncAddToken: str(s.syncAddToken),
       lastSyncAt: str(s.lastSyncAt),
     };
   }

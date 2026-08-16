@@ -19,7 +19,16 @@
 
 // ---------------------------------------------------------------------------
 // SET THIS. Any random hard-to-guess string; paste the same one into Tappy.
+// This one can read and change everything, so it is only ever sent inside a
+// POST body, never in a URL.
 var TOKEN = 'CHANGE-ME-TO-A-LONG-RANDOM-STRING';
+
+// OPTIONAL but recommended. A second, different random string for the iOS
+// Shortcut. It can ONLY add expenses - it cannot read your history and cannot
+// change or delete anything. Worth setting because the Shortcut has to put its
+// token in a URL, and URLs end up in logs and screenshots in a way POST bodies
+// do not. Leave it as-is to just use TOKEN for the Shortcut too.
+var ADD_TOKEN = 'OPTIONAL-SECOND-RANDOM-STRING-FOR-THE-SHORTCUT';
 // ---------------------------------------------------------------------------
 
 var SHEET_NAME = 'Expenses';
@@ -138,8 +147,17 @@ function normalize_(e) {
   };
 }
 
+// Full access: read, write, delete. Required for everything except `add`.
 function authed_(token) {
   return String(token || '') === TOKEN && TOKEN !== 'CHANGE-ME-TO-A-LONG-RANDOM-STRING';
+}
+
+// Append-only access, for the Shortcut. Deliberately does NOT grant `pull`, so
+// a token exposed in a URL cannot be used to read the expense history back.
+function canAdd_(token) {
+  var configured = ADD_TOKEN && ADD_TOKEN !== 'OPTIONAL-SECOND-RANDOM-STRING-FOR-THE-SHORTCUT';
+  if (configured && String(token || '') === ADD_TOKEN) return true;
+  return authed_(token);
 }
 
 function pull_(since) {
@@ -161,15 +179,12 @@ function pull_(since) {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  if (!authed_(p.token)) return json_({ ok: false, error: 'bad token' });
   var action = p.action || 'pull';
 
-  if (action === 'ping') {
-    return json_({ ok: true, service: 'tappy', serverTime: nowIso_() });
-  }
-
-  // The Shortcut path: one plain GET, no app involved.
+  // The Shortcut path: one plain GET, no app involved. Checked against the
+  // append-only token first, so this is the ONLY action a leaked URL enables.
   if (action === 'add') {
+    if (!canAdd_(p.token)) return json_({ ok: false, error: 'bad token' });
     var amount = Number(String(p.amount || '').replace(/[^0-9.]/g, ''));
     if (!isFinite(amount) || amount <= 0) return json_({ ok: false, error: 'amount must be greater than zero' });
     var lock = LockService.getScriptLock();
@@ -191,6 +206,13 @@ function doGet(e) {
     } finally {
       lock.releaseLock();
     }
+  }
+
+  // Everything below needs the full-access token.
+  if (!authed_(p.token)) return json_({ ok: false, error: 'bad token' });
+
+  if (action === 'ping') {
+    return json_({ ok: true, service: 'tappy', serverTime: nowIso_() });
   }
 
   if (action === 'pull') {

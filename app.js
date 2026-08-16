@@ -1010,6 +1010,7 @@ function renderSettings() {
     : '';
   el('setSyncUrl').value = s.syncUrl;
   el('setSyncToken').value = s.syncToken;
+  el('setSyncAddToken').value = s.syncAddToken;
   renderSyncStatus();
   renderShortcutHelp();
   renderCategoryManager();
@@ -1039,8 +1040,10 @@ function renderShortcutHelp() {
   el('shortcutIntro').textContent = connected
     ? 'Your shortcut can write straight to the sheet — nothing opens, nothing flashes up. Tappy picks the expense up next time it syncs.'
     : 'Right now a shortcut has to open Tappy for a moment to save. Connect a Google Sheet above and it can save silently in the background instead.';
+  // Prefer the append-only token here: this address goes into a shortcut, and
+  // shortcut URLs are the one place the secret is visible.
   el('quickUrl').textContent = connected
-    ? `${s.syncUrl}?action=add&token=${s.syncToken}&amount=AMOUNT&category=CATEGORY&note=NOTE`
+    ? `${s.syncUrl}?action=add&token=${s.syncAddToken || s.syncToken}&amount=AMOUNT&category=CATEGORY&note=NOTE`
     : `${location.origin}${location.pathname}?amount=AMOUNT&category=CATEGORY&note=NOTE&save=1`;
   el('shortcutFinalStep').innerHTML = connected
     ? '<strong>Get Contents of URL</strong> — pass it that Text. This runs in the background; nothing appears on screen.'
@@ -1051,6 +1054,7 @@ async function saveSyncSettings() {
   Store.setSettings({
     syncUrl: el('setSyncUrl').value.trim(),
     syncToken: el('setSyncToken').value.trim(),
+    syncAddToken: el('setSyncAddToken').value.trim(),
   });
   renderSyncStatus();
   renderShortcutHelp();
@@ -1290,6 +1294,7 @@ function init() {
   });
   el('setSyncUrl').addEventListener('change', saveSyncSettings);
   el('setSyncToken').addEventListener('change', saveSyncSettings);
+  el('setSyncAddToken').addEventListener('change', saveSyncSettings);
   el('syncTestBtn').addEventListener('click', checkSyncConnection);
   el('syncNowBtn').addEventListener('click', () => syncNow());
 

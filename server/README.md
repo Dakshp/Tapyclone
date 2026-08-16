@@ -31,7 +31,36 @@ Once this is done:
    The script refuses every request while the placeholder is still there, so it
    cannot be left open by accident.
 
-5. Save (the disk icon).
+5. Just below it, set a **second, different** random string for `ADD_TOKEN`:
+
+   ```js
+   var ADD_TOKEN = 'OPTIONAL-SECOND-RANDOM-STRING-FOR-THE-SHORTCUT';
+   ```
+
+   This is the one the iOS Shortcut uses. It can **only add** expenses — it
+   cannot read your history, and cannot edit or delete anything. It is worth
+   setting because a Shortcut has to carry its token in a URL, and URLs turn up
+   in logs and screenshots in a way POST bodies do not. If that token ever
+   leaked, the worst anyone could do is add junk expenses you can delete.
+
+   (Leave it on the placeholder and the Shortcut just uses the main token.)
+
+6. Save (the disk icon).
+
+### Why not "sign in with Google" instead of tokens?
+
+It sounds safer, but it breaks both callers. Setting the deployment to *Only
+myself* means Google answers with a **sign-in page** rather than your data:
+
+- the **Shortcut** has no Google session, so it would receive that page instead
+  of logging the expense — the whole point of it is lost
+- the **app** cannot log in from a `fetch()` either; it just sees HTML where it
+  expected data
+
+Interactive login and non-interactive callers are incompatible. Real OAuth would
+fix the app but still not the Shortcut — you would end up storing a refresh token
+in it, which is a shared secret again, and one that unlocks far more than a
+single sheet. Two scoped tokens is the safer trade here.
 
 ## 3. Deploy it
 
