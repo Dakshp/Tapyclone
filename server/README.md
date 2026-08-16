@@ -113,9 +113,20 @@ One row per expense, in a tab called **Expenses**:
 - `deleted` marks an expense removed on some device. The row is kept rather than
   cleared so the deletion reaches your other devices instead of them uploading
   their copy again.
-- `uid` is what sync matches on. **Do not edit that column.** Editing amounts,
-  categories or notes by hand is fine; bump `updatedAt` to something later if you
-  want the change to win over what is on a phone.
+- `uid` is what sync matches on. **Do not edit that column.**
+
+### Adding an expense by typing into the sheet
+
+You can. Fill in just **date**, **amountMinor** and **category** on a new row and
+leave the rest blank — the script fills in `uid` and the timestamps for you the
+next time any device syncs, and the expense then appears in the app. The category
+can be a name as you see it in Tappy ("Food & Drink"); it is matched up for you.
+
+Remember `amountMinor` is paise: type `44400` for ₹444.
+
+**Editing** an existing row by hand works too, but clear its `updatedAt` cell
+afterwards. That marks the row as freshly changed, so your edit wins over the
+copy sitting on a phone; otherwise the phone's older copy may overwrite it.
 
 ## Troubleshooting
 

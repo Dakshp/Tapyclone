@@ -53,6 +53,38 @@ function sheet_() {
   return sh;
 }
 
+/**
+ * Makes hand-typed rows first-class.
+ *
+ * Someone adding an expense by typing into the spreadsheet has no reason to
+ * know about `uid` or `updatedAt`, and without them the row would be silently
+ * ignored by every device. So any row that carries real data but is missing its
+ * bookkeeping columns gets them filled in here, which is what lets a row typed
+ * straight into Google Sheets show up in the app.
+ */
+function healRows_() {
+  var sh = sheet_();
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  var range = sh.getRange(2, 1, last - 1, HEADERS.length);
+  var values = range.getValues();
+  var now = nowIso_();
+  var changed = false;
+
+  for (var i = 0; i < values.length; i++) {
+    var r = values[i];
+    // A row with neither a date nor an amount is just an empty row.
+    var hasData = String(r[1] || '').length > 0 || String(r[2] || '').length > 0;
+    if (!hasData) continue;
+    if (!r[0]) { r[0] = uuid_(); changed = true; }
+    if (!r[6]) { r[6] = now; changed = true; }
+    if (!r[5]) { r[5] = r[6]; changed = true; }
+    if (r[3] === '' || r[3] === null) { r[3] = 'other'; changed = true; }
+    if (r[7] === '' || r[7] === null) { r[7] = 'FALSE'; changed = true; }
+  }
+  if (changed) range.setValues(values);
+}
+
 function readAll_() {
   var sh = sheet_();
   var last = sh.getLastRow();
@@ -216,7 +248,15 @@ function doGet(e) {
   }
 
   if (action === 'pull') {
-    return json_({ ok: true, serverTime: nowIso_(), expenses: pull_(p.since) });
+    // Healing writes, so it needs the lock like any other write.
+    var pullLock = LockService.getScriptLock();
+    pullLock.waitLock(20000);
+    try {
+      healRows_();
+      return json_({ ok: true, serverTime: nowIso_(), expenses: pull_(p.since) });
+    } finally {
+      pullLock.releaseLock();
+    }
   }
 
   return json_({ ok: false, error: 'unknown action' });
@@ -234,6 +274,7 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    healRows_();
     var changed = applyBatch_(body.expenses || []);
     // Reply with everything the caller has not seen, so push and pull are a
     // single round trip.
