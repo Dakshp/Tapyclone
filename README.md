@@ -359,7 +359,13 @@ spending yet is not a day with nothing spent.
 
 Each cell carries the **day's total as well as its shade** — the shading is what
 makes a heavy week visible without reading thirty numbers, the figure is what
-lets you check one. It is a plain grouped number, deliberately not `Intl`'s
+lets you check one.
+
+**Every day that has happened carries a figure, zeros included.** A column of
+numbers with holes in it is harder to scan than one without, and a 0 is a real
+answer to "what did I spend" rather than a missing one — it just recedes, since
+it is not news. A day that has *not* happened stays blank: a 0 there would be a
+claim about a day that is not over. It is a plain grouped number, deliberately not `Intl`'s
 compact notation: in `en-IN` that abbreviates a thousand as **T**, so ₹4,500
 renders as "4.5T", which reads as trillions to anyone who has not met the
 convention.

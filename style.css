@@ -676,18 +676,19 @@ button {
 /* The figure, not just the shade. Short form - "420", "1.5K" - because a cell is
    about 44px wide and a full "₹1,500.00" would have to shrink past reading. */
 .cal-sum {
-  font-size: 9.5px;
+  font-size: 10.5px;
   /* A five-figure day is rare but must not blow the cell open. */
-  letter-spacing: -.02em;
+  letter-spacing: -.025em;
   font-weight: 600;
   line-height: 1.1;
-  opacity: .78;
+  opacity: .82;
   font-variant-numeric: tabular-nums;
   max-width: 100%;
   overflow: hidden;
 }
-.cal-day[data-level="0"] .cal-sum,
-.cal-day[data-level="future"] .cal-sum { display: none; }
+/* A zero is still shown - the column reads better without holes in it - but it
+   is not news, so it recedes rather than competing with the days that are. */
+.cal-sum.is-zero { opacity: .32; font-weight: 500; }
 
 /* Today is its date in the accent colour, the selection is a ring around the
    cell. Two different marks, so "where I am" and "what I am looking at" never

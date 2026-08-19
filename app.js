@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 
 const state = {
   date: todayStr(),
@@ -710,9 +710,8 @@ function moveCalendarMonth(delta) {
  * costs width the number needs more.
  */
 function cellAmount(minor) {
-  if (!minor) return '';
   const s = Store.getSettings();
-  const value = Math.round(minor / Store.MINOR_PER_MAJOR);
+  const value = Math.round((minor || 0) / Store.MINOR_PER_MAJOR);
   try {
     return new Intl.NumberFormat(s.locale, { maximumFractionDigits: 0 }).format(value);
   } catch (err) {
@@ -772,10 +771,19 @@ function buildCalGrid(month, selected) {
     // The amount in the cell, so the grid can be read as figures and not only
     // as shading. The shading stays because it is what makes a heavy week
     // visible without reading thirty numbers.
-    const sum = document.createElement('span');
-    sum.className = 'cal-sum';
-    sum.textContent = cellAmount(amount);
-    cell.appendChild(sum);
+    //
+    // Every day that has happened carries a figure, including the zeros: a
+    // column of numbers with holes in it is harder to scan than one without,
+    // and a 0 here is a real answer to "what did I spend" rather than a missing
+    // one. Days that have NOT happened stay blank - a 0 there would be a claim
+    // about a day that has not finished.
+    if (!future) {
+      const sum = document.createElement('span');
+      sum.className = 'cal-sum';
+      if (!amount) sum.classList.add('is-zero');
+      sum.textContent = cellAmount(amount);
+      cell.appendChild(sum);
+    }
 
     cell.setAttribute('aria-label', `${formatDayTitle(date)}: ${
       future ? 'not yet' : amount > 0 ? formatMoney(amount, { compact: true }) : 'nothing spent'
