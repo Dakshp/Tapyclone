@@ -449,6 +449,20 @@ the two live controls sat at the top of a wall of one-time plumbing, and *Erase
 everything* was one stray tap away at all times. Folded, they are still one tap
 from view for the day they are needed.
 
+The summary is set like a **section heading**, not like a row: it is the parent
+of everything the fold contains, and at 16px/600 it was smaller and lighter than
+the 21px/700 headings *inside* it — the loudest type on the screen sitting inside
+the quietest control, which made it read as a caption for the section below
+rather than the thing that opened it. Its own sub-headings step down to 16.5px in
+turn, and indent to the summary's left edge, so no child starts further left than
+its parent. Title and note **stack** instead of sharing a line, because side by
+side a 21px title and a three-word note both wrapped and turned one row into four
+ragged lines. The chevron holds the right edge whether the fold is open or shut —
+it used to snap back against the title on opening, because the margin pushing it
+right lived on the note that had just been hidden. Open, the summary gets a
+hairline floor; without one the first heading sat 4px below the label with
+nothing between them.
+
 **About stays outside the fold**, since the version number is what you go to
 Settings to read when something looks wrong, and burying the thing you check
 during a problem inside a collapsed section is exactly backwards.

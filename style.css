@@ -761,29 +761,62 @@ button {
 .fold summary::marker { content: ''; }
 .fold summary:active { background: var(--fill-soft); }
 
-.fold-title { font-size: var(--t-body); font-weight: 600; }
+/* This label is the parent of everything the fold contains, so it is set like
+   a section heading rather than like a row: it used to be 16px/600 while the
+   headings inside it were 21px/700, which put the loudest type on the screen
+   inside the quietest control and made the summary look like a caption for the
+   section below it instead of the thing that opened it. */
+.fold-title {
+  font-size: var(--t-title);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+/* Title and note stack rather than sharing a line. Side by side, a 21px title
+   and a three-word note both wrapped to two lines in a 358px card and the row
+   turned into four ragged lines. */
+.fold-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+}
 .fold-note {
   font-size: var(--t-foot);
   color: var(--muted);
-  margin-left: auto;
-  text-align: right;
-  min-width: 0;
 }
 .fold-chevron {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex: none;
   color: var(--muted);
   transition: transform .2s cubic-bezier(.25, .9, .3, 1);
 }
 .fold[open] .fold-chevron { transform: rotate(90deg); }
+/* The note previews what is inside, so it has nothing to say once the fold is
+   open. The chevron holds its place at the right edge either way - it used to
+   snap back against the title, because the margin that pushed it right lived on
+   the note that had just been hidden. */
 .fold[open] .fold-note { display: none; }
+/* Open, the summary needs a floor. Without it the first heading sat 4px below
+   the label with nothing between them, which is most of what read as cramped. */
+.fold[open] summary { border-bottom: 1px solid var(--separator); }
 
-/* The folded sections keep their own headings and cards, so the body only has
-   to hold them clear of the summary and the card's own rounded corner. */
+/* The folded sections keep their own headings and cards. Their headings are
+   sub-headings here rather than peers of Categories and About, so they step
+   down a size, and they indent to the summary's own 16px so a child never
+   starts further left than its parent. */
 .fold-body { padding: 0 0 6px; }
-.fold-body .section-head { margin-top: 18px; }
-.fold-body .section-head:first-child { margin-top: 4px; }
+.fold-body .section-head { margin: 22px 16px 10px; }
+.fold-body .section-head:first-child { margin-top: 17px; }
+.fold-body .section-head h2 {
+  font-size: var(--t-head);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+/* Rows inside the fold are inset 14px by default, two short of the summary and
+   the hints. On one shared left edge that 2px reads as a wobble. */
+.fold-body .field { padding-left: 16px; padding-right: 16px; }
 /* Nested cards sit on the fold's own surface, so they need a hairline rather
    than the page colour to separate them from it. */
 .fold-body .card,
