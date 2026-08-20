@@ -228,6 +228,47 @@ function pull_(since) {
 }
 
 // ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+/**
+ * Run this from the editor when sync is not working: pick `checkSetup` in the
+ * toolbar's function menu and press Run, then read the Execution log.
+ *
+ * It answers the question the web app cannot: the app only ever sees the result
+ * of a request made by a stranger, so "it failed" could mean the script cannot
+ * find the sheet, or that it can find it perfectly well and only the deployment
+ * is wrong. Run here, as you, it isolates the first half.
+ *
+ *   "can reach the sheet" + sync still failing -> the deployment is the problem
+ *                                                (Execute as / Who has access)
+ *   "CANNOT reach the sheet"                   -> set SHEET_ID at the top
+ *
+ * It prints no secrets, only whether they have been set, so the log is safe to
+ * share.
+ */
+function checkSetup() {
+  var out = [];
+  out.push('TOKEN set: ' + (TOKEN !== 'CHANGE-ME-TO-A-LONG-RANDOM-STRING' && String(TOKEN).length >= 12));
+  out.push('ADD_TOKEN set: ' + (ADD_TOKEN !== 'OPTIONAL-SECOND-RANDOM-STRING-FOR-THE-SHORTCUT' && String(ADD_TOKEN).length >= 12));
+  out.push('SHEET_ID set: ' + Boolean(SHEET_ID));
+  out.push('bound to a spreadsheet: ' + Boolean(SpreadsheetApp.getActiveSpreadsheet()));
+  try {
+    var sh = sheet_();
+    out.push('spreadsheet: ' + sh.getParent().getName());
+    out.push('tab: ' + sh.getName());
+    out.push('expenses in it: ' + Math.max(sh.getLastRow() - 1, 0));
+    out.push('RESULT: this script CAN reach the sheet.');
+  } catch (err) {
+    out.push('RESULT: this script CANNOT reach the sheet.');
+    out.push('reason: ' + String((err && err.message) || err));
+  }
+  var text = out.join('\n');
+  Logger.log(text);
+  return text;
+}
+
+// ---------------------------------------------------------------------------
 // HTTP entry points
 // ---------------------------------------------------------------------------
 

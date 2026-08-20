@@ -172,6 +172,24 @@ If step 3 says *"Everything was already up to date"*, the row was not picked up 
 check the date is today's and that `amountMinor` is a plain number with no ₹ sign
 or comma.
 
+## When something is wrong, run `checkSetup` first
+
+In the Apps Script editor, pick **`checkSetup`** from the function menu in the
+toolbar and press **Run**, then open the **Execution log**.
+
+It answers the half of the question the app cannot. Tracky only ever sees the
+result of a request made by a stranger, so "sync failed" could mean the script
+cannot find your sheet, or that it finds it perfectly well and only the
+deployment is wrong. Run in the editor, as you, `checkSetup` separates the two:
+
+- **"CANNOT reach the sheet"** — set `SHEET_ID` at the top of `Code.gs`.
+- **"CAN reach the sheet"**, and sync still fails — the script is fine and the
+  **deployment** is the problem: *Execute as* must be **Me**, *Who has access*
+  must be **Anyone**.
+
+It prints whether the tokens are set, never what they are, so the log is safe to
+paste to someone helping you.
+
 ## Troubleshooting
 
 **"Could not reach the sync address."** Access is probably not set to *Anyone*.
