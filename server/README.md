@@ -79,6 +79,30 @@ single sheet. Two scoped tokens is the safer trade here.
 > use it. The URL is unguessable and the token is the real lock — which is why
 > it needs to be long and random.
 
+### The two settings do different jobs — don't confuse them
+
+This trips people up, because both sound like they are about logging in:
+
+| | What it decides | Set it to |
+|---|---|---|
+| **Execute as** | Whose Google account the script *runs as*, and therefore whose sheet it may touch | **Me** |
+| **Who has access** | Who may *call the URL* | **Anyone** |
+
+So yes — the script has to be created under a Google login, and you will be asked
+to authorise it **once**, in the browser, at setup. That is normal and required:
+it is the script asking for permission to edit *your own* sheet, and it is what
+"Execute as: Me" then relies on.
+
+What must never require a login is the **calling** side. The app calls from
+`fetch()` and the Shortcut has no Google session, so neither can answer a sign-in
+page. Setting *Who has access* to "Anyone with a Google account" is exactly the
+mistake that breaks both. The shared token is what stands in for authentication
+there.
+
+**Whoever creates a deployment owns it.** If you set up both sheets, both live in
+your Drive and you can read either. If the other person should keep theirs
+private from you, they need to do steps 1–3 under their own Google account.
+
 ## 4. Connect Tracky
 
 1. Open Tracky → **Settings → Sync to a Google Sheet**.

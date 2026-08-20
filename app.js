@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 
 const state = {
   date: todayStr(),
@@ -1928,11 +1928,37 @@ async function saveSyncSettings() {
   renderShortcutHelp();
 }
 
+/**
+ * The two URLs involved here look nothing alike but are easy to confuse: the
+ * sheet's own address, which is what you see in the browser, and the Web App
+ * address, which only exists once the script has been deployed. Pasting the
+ * first fails with a network error that explains nothing, so it is worth naming
+ * the mistake.
+ */
+function syncUrlProblem(url) {
+  if (/docs\.google\.com\/spreadsheets/i.test(url)) {
+    return 'That is the sheet\u2019s own address. The one you need comes from '
+      + 'Apps Script \u2192 Deploy \u2192 New deployment \u2192 Web app, and ends in /exec.';
+  }
+  if (/script\.google\.com/i.test(url) && !/\/exec\/?$/.test(url)) {
+    return /\/dev\/?$/.test(url)
+      ? 'That is the test address. Use the deployed one, which ends in /exec.'
+      : 'That web app URL should end in /exec.';
+  }
+  if (!/^https:\/\//i.test(url)) return 'The web app URL should start with https://';
+  return '';
+}
+
 async function checkSyncConnection() {
   const url = el('setSyncUrl').value.trim();
   const token = el('setSyncToken').value.trim();
   if (!url || !token) {
     renderSyncStatus('Enter both the web app URL and the token first.');
+    return;
+  }
+  const problem = syncUrlProblem(url);
+  if (problem) {
+    renderSyncStatus(problem);
     return;
   }
   renderSyncStatus('Checking…');

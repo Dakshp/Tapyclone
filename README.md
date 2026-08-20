@@ -73,6 +73,17 @@ Once installed it works with no connection at all.
 Off by default. `server/README.md` walks through connecting a Google Sheet —
 about ten minutes, entirely in the browser.
 
+**Two people, two sheets.** The sync URL and token live in each device's own
+settings, and `Code.gs` binds to whichever sheet its script lives in — so two
+phones pointed at two deployments keep entirely separate data, with no change to
+the app. Nothing needs to be built for "multi-user" unless several people want to
+share *one* sheet, which would need real accounts rather than a shared token.
+
+The one way this goes wrong: the first sync **pushes whatever is already on that
+phone** up to the configured sheet. Point a phone with a month of history at
+somebody else's sheet and the two datasets merge. Take a backup on both phones
+before connecting either, and check the URL before syncing.
+
 How it works, briefly:
 
 - Each expense carries a globally unique `uid` and an `updatedAt`. Sync matches
