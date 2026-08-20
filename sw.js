@@ -1,6 +1,8 @@
 // App-shell cache so Tracky opens instantly and works with no connection.
-// Bump CACHE whenever app files change - the old cache is then dropped.
-const CACHE = 'tracky-v23';
+// Bump CACHE whenever app files change - the old cache is then dropped. It
+// usually tracks app.js's APP_VERSION, but it has to move even when the
+// visible version deliberately does not, so it carries its own suffix.
+const CACHE = 'tracky-v23-2';
 const SHELL = [
   './',
   './index.html',

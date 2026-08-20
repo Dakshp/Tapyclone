@@ -1,5 +1,7 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
-// two are what tell a fixed build apart from a cached one.
+// two are what tell a fixed build apart from a cached one. Where a release only
+// rewrites visible copy, the copy itself is the tell, so this may hold while
+// CACHE takes a suffix instead.
 const APP_VERSION = 23;
 
 const state = {

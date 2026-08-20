@@ -309,13 +309,24 @@
       </details>
 
       <div class="section-head"><h2>About</h2></div>
-      <div class="card">
-        <p class="hint">Tracky is a fast daily expense tracker. It runs entirely offline and keeps your data private on your device.</p>
-        <p class="hint">On iPhone: open in Safari, tap Share, then <strong>Add to Home Screen</strong> to install it like a real app.</p>
+      <div class="card about">
+        <p class="about-lede">Your money, your device.</p>
+        <ul class="about-list">
+          <li><strong>Private by default.</strong> Every expense stays in your
+            phone&rsquo;s own storage &mdash; offline, instant, nothing sent unless you
+            say so.</li>
+          <li><strong>Your sheet, not our server.</strong> Sync writes to a Google
+            Sheet in <em>your</em> account. Nothing sits in between.</li>
+          <li><strong>One tap, or one word.</strong> A small API lets a Shortcut or
+            Siri log a spend without opening the app.</li>
+        </ul>
+        <p class="hint">On iPhone: Share &rarr; <strong>Add to Home Screen</strong>.</p>
         <!-- Visible on purpose. Without it there is no way to tell a fixed build
              from a cached one, and "it still does not work" cannot be answered. -->
         <p class="hint" id="buildInfo"></p>
         <button class="btn-secondary" id="updateBtn">Check for update</button>
+        <p class="about-sign">Made by <span class="sign-name">D@k$h.!</span></p>
+        <p class="about-rights">&copy; All rights reserved.</p>
       </div>
     </div>
   </section>
