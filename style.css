@@ -382,7 +382,6 @@ button {
    direction never rests on colour alone. */
 :root {
   --viz-current: #4338ca;
-  --viz-context: #bcbccf;
   --viz-axis: #d5d5de;
   --viz-ink: #14141a;
   --viz-muted: #71717f;
@@ -400,7 +399,6 @@ button {
 
 :root[data-theme="dark"] {
   --viz-current: #a5b4fc;
-  --viz-context: #474756;
   --viz-axis: #3a3a46;
   --viz-ink: #f2f2f6;
   --viz-muted: #9a9aab;

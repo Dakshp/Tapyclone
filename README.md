@@ -324,12 +324,21 @@ so the interface leans plain:
   the same place, which said the two were somehow equivalent. Long figures step
   down a size rather than run into their neighbours — Indian grouping makes a
   lakh eight characters wide in a 41-unit column.
-- **Chart colours** are a single-hue ordinal pair (previous → current), stepped
-  separately for the light and dark surfaces and checked against contrast and
-  colour-vision thresholds rather than picked by eye. Direction of change is
-  always carried by an arrow **and** a word, so it never depends on colour;
-  the selected period is shown by emphasis (one bar coloured, the rest grey)
-  instead of giving every bar its own hue.
+- **The bars share the calendar's palette.** They take its two strongest steps —
+  the deepest for the selected bar, the one below it for the rest — and reference
+  those tokens directly, so the two views cannot drift apart the first time
+  either is tuned. Before this the unselected bars were grey while the same days
+  were tinted indigo in the calendar: one dataset, two colour languages.
+
+  The chart does **not** take the calendar's full four-step ramp, though. A
+  bar's *height* already says how much, so tinting by amount as well would
+  encode it twice and leave nothing for the selection to say. In the calendar
+  colour has to do that work, because every cell is the same size. So: colour
+  means *amount* in the calendar and *emphasis* in the chart, which is why they
+  share a palette rather than a scale.
+
+  Direction of change is always carried by an arrow **and** a word, so nothing
+  ever depends on colour alone.
 - `sw.js` — caches the app shell for offline use. **Bump `CACHE` whenever an
   app file changes**, otherwise installed copies keep serving the old version.
 - `icons/` — generated, not hand-drawn; see the icon script in the project

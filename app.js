@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 
 const state = {
   date: todayStr(),
@@ -1060,8 +1060,21 @@ function buildChartSvg(data, interactive) {
                  fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
                  >${text}</text>`
         : '';
+      // The bars borrow the calendar's own two strongest steps rather than a grey
+      // and a colour, so the same data reads in the same language on both. They
+      // reference the calendar tokens directly - given their own copies the two
+      // would drift apart the first time either was tuned.
+      //
+      // Note the chart does NOT take the calendar's full four-step ramp: a bar's
+      // HEIGHT already says how much, so tinting by amount as well would encode
+      // it twice and leave nothing for the selection to say. Here colour carries
+      // emphasis only - the deepest step for the selected bar, the one below it
+      // for the rest, which is the same pairing the calendar uses for its
+      // selected cell against a busy one. It needs no ring on top: --primary and
+      // --cal-3 are the same colour in light mode, so one would have been dead
+      // weight there and a faint inconsistency in dark.
       return `
-        <path d="${barPath(x, y, barW, h, 4)}" fill="${selected ? 'var(--viz-current)' : 'var(--viz-context)'}"></path>
+        <path d="${barPath(x, y, barW, h, 4)}" fill="${selected ? 'var(--cal-3)' : 'var(--cal-2)'}"></path>
         ${label}
         <text x="${cx.toFixed(1)}" y="${H - 26}" text-anchor="middle" font-size="12.5"
               fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
