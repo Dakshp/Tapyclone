@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 
 const state = {
   date: todayStr(),
@@ -150,7 +150,7 @@ function toast(message, action) {
  * movement is mostly vertical the gesture is released back to the scroller and
  * never reclaimed, so a slightly slanted scroll does not turn into a swipe.
  */
-function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45, owner = true }) {
+function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45, owner = true, axisRatio = 1 }) {
   // Marks this element as having claimed horizontal drags. The screen-level
   // tab gesture checks for it and stands down, so swiping a chart, a calendar
   // or an expense row never also flips to the next tab.
@@ -182,7 +182,10 @@ function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45, owner = tr
     const dy = p.clientY - startY;
     if (axis === null) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      // axisRatio above 1 asks for a decidedly horizontal drag rather than
+      // merely a more-horizontal-than-vertical one, for gestures that should
+      // take deliberation.
+      axis = Math.abs(dx) > Math.abs(dy) * axisRatio ? 'x' : 'y';
     }
     if (axis !== 'x') return;
     if (e.cancelable) e.preventDefault();
@@ -303,13 +306,19 @@ function buildExpenseRow(e) {
 
   let dragged = false;
   onHorizontalSwipe(row, {
-    threshold: 50,
+    // Deliberate, not incidental: a row opening by accident is worse than one
+    // that takes a firmer pull, since the actions it uncovers include Delete.
+    threshold: 70,
+    axisRatio: 1.6,
     onDrag: (dx, done) => {
       if (done) {
         row.style.transform = '';
+        wrap.classList.remove('sliding');
         return;
       }
       dragged = Math.abs(dx) > 6;
+      // Only now are the actions allowed to be seen at all.
+      wrap.classList.add('sliding');
       const base = wrap.classList.contains('revealed') ? -SWIPE_REVEAL : 0;
       // Rubber-band past the ends so the row cannot be dragged off into space.
       const next = Math.max(Math.min(base + dx, 0), -SWIPE_REVEAL - 24);
@@ -1004,9 +1013,9 @@ function buildChartSvg(data, interactive) {
   // sensible size rather than shrinking to a fraction of what it says.
   const W = 360;
   const H = 190;
-  // Top band holds the selected bar's value; the bottom band holds two lines of
-  // axis label, so neither is ever clipped by the container.
-  const pad = { top: 28, bottom: 46, side: 6 };
+  // Headroom for a value sitting just above the tallest bar, and two lines of
+  // axis label at the foot, so neither is ever clipped.
+  const pad = { top: 20, bottom: 46, side: 6 };
   const plotH = H - pad.top - pad.bottom;
   const plotW = W - pad.side * 2;
   const n = data.series.length;
@@ -1030,17 +1039,30 @@ function buildChartSvg(data, interactive) {
       const isNow = s.period === Store.periodOf(todayStr(), data.granularity);
       const cx = x + barW / 2;
       const [line1, line2] = axisLabel(s.period, data.granularity);
-      // The value sits in the reserved top band rather than riding the bar top,
-      // so it can never collide with a taller neighbour; x is clamped to stay
-      // inside the plot at either end.
-      const labelX = Math.min(Math.max(cx, 34), W - 34);
-      const value = selected
-        ? `<text x="${labelX.toFixed(1)}" y="17" text-anchor="middle" font-size="15"
-                 font-weight="700" fill="var(--viz-ink)">${formatMoney(s.totalMinor, { compact: true })}</text>`
+
+      // EVERY bar carries its figure, not just the selected one - a chart you
+      // have to tap through one column at a time cannot be compared, which is
+      // the only reason to put seven of them side by side.
+      //
+      // And the figure sits just above its OWN bar rather than in a band at the
+      // top of the card. Pinned to the top, a ₹670 day and a ₹5,000 day printed
+      // their numbers in exactly the same place, which said the two were
+      // somehow equivalent.
+      const text = cellAmount(s.totalMinor);
+      // A column is about 41 units wide. Indian grouping makes a lakh eight
+      // characters ("1,25,000"), which would run into its neighbours at full
+      // size, so long figures step down rather than collide.
+      const size = text.length > 7 ? 8 : text.length > 5 ? 9 : selected ? 11 : 10;
+      const label = s.totalMinor > 0
+        ? `<text x="${cx.toFixed(1)}" y="${Math.max(y - 5, 9).toFixed(1)}" text-anchor="middle"
+                 font-size="${size}"
+                 font-weight="${selected ? '700' : '500'}"
+                 fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
+                 >${text}</text>`
         : '';
       return `
         <path d="${barPath(x, y, barW, h, 4)}" fill="${selected ? 'var(--viz-current)' : 'var(--viz-context)'}"></path>
-        ${value}
+        ${label}
         <text x="${cx.toFixed(1)}" y="${H - 26}" text-anchor="middle" font-size="12.5"
               fill="${selected ? 'var(--viz-ink)' : 'var(--viz-muted)'}"
               font-weight="${selected ? '700' : '500'}">${line1}</text>

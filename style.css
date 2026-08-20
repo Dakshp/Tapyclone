@@ -813,12 +813,20 @@ button {
   background: var(--separator);
 }
 
+/* Hidden outright unless the row is open or being dragged. The row's own opaque
+   background is supposed to cover these, and here it does - but a screenshot
+   from a real phone showed Edit and Delete visible under a row sitting at rest,
+   so covering them is evidently not something to rely on. Nothing to paint over
+   cannot bleed through. */
 .row-actions {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
   width: 168px;
+  visibility: hidden;
 }
+.row-wrap.revealed .row-actions,
+.row-wrap.sliding .row-actions { visibility: visible; }
 
 /* Full-height blocks here, because inside a grouped list the row IS the surface -
    inset pills would have nothing but a hole to sit in. */

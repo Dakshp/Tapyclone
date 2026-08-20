@@ -124,6 +124,14 @@ the breakdown rather than silently dropped.
 - **Swipe an expense left** to reveal **Edit** and **Delete** in place — the
   same pattern as Mail, with no intermediate menu to step through.
 
+The swipe actions are **hidden outright** until a row is open or moving, rather
+than relying on the row's opaque background to cover them. A photo from a real
+phone showed Edit and Delete plainly visible beneath a row sitting at rest — the
+layout that produces that is not reproducible here, but nothing to paint over
+cannot bleed through. Opening a row also takes a firm pull now (70px, and
+decidedly horizontal): the actions it uncovers include Delete, so an accident
+there costs more than a stiffer gesture does.
+
 Text selection is off across the app. Resting a finger on a row used to start a
 selection, and dragging its handles afterwards *is* a horizontal drag — so the
 swipe-to-reveal counted it and merely touching an entry opened its actions.
@@ -307,6 +315,15 @@ so the interface leans plain:
 - `app.js` — rendering and interaction. Calendar dates are read from local
   fields and stepped in UTC, which avoids the off-by-one-day bug that hits any
   timezone ahead of UTC.
+- **Every bar carries its figure**, not only the selected one — a chart you have
+  to tap through a column at a time cannot be compared, which is the only reason
+  to put seven of them side by side. The selected bar's is bolder and at full
+  contrast; the rest are muted.
+- **A bar's figure sits above that bar**, not in a band at the top of the card.
+  Pinned to the top, a ₹670 day and a ₹5,000 day printed their numbers in exactly
+  the same place, which said the two were somehow equivalent. Long figures step
+  down a size rather than run into their neighbours — Indian grouping makes a
+  lakh eight characters wide in a 41-unit column.
 - **Chart colours** are a single-hue ordinal pair (previous → current), stepped
   separately for the light and dark surfaces and checked against contrast and
   colour-vision thresholds rather than picked by eye. Direction of change is
