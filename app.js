@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 
 const state = {
   date: todayStr(),
@@ -734,10 +734,10 @@ function cellAmount(minor) {
 }
 
 /** One month's grid, as a detached node so the pager can hold three of them. */
-function buildCalGrid(month, selected) {
+function buildCalGrid(month, selected, categoryId) {
   const today = todayStr();
   const days = lastDayOfMonth(month);
-  const totals = Store.getDailyTotals(days, `${month}-${String(days).padStart(2, '0')}`);
+  const totals = Store.getDailyTotals(days, `${month}-${String(days).padStart(2, '0')}`, categoryId);
   const byDate = Object.fromEntries(totals.map((t) => [t.date, t.totalMinor]));
   const max = Math.max(...totals.map((t) => t.totalMinor), 1);
 
@@ -850,7 +850,9 @@ function renderCalendar(data) {
     const [y, m] = month.split('-').map(Number);
     const target = new Date(Date.UTC(y, m - 1 + offset, 1)).toISOString().slice(0, 7);
     if (target > monthOf(today)) return null;
-    return buildCalGrid(target, data.period);
+    // The focus scopes the grid too: with one category selected the cells show
+    // that category's days, matching every other figure on the screen.
+    return buildCalGrid(target, data.period, data.categoryId);
   });
 
   el('calPager').querySelectorAll('.is-current .cal-day').forEach((cell) => {
@@ -867,7 +869,9 @@ function renderCalendar(data) {
   // indigo on a light page and towards pale indigo on a dark one, so saying
   // "darker" in dark mode would name the wrong end.
   const spent = Store.getDailyTotals(
-    lastDayOfMonth(month), `${month}-${String(lastDayOfMonth(month)).padStart(2, '0')}`
+    lastDayOfMonth(month),
+    `${month}-${String(lastDayOfMonth(month)).padStart(2, '0')}`,
+    data.categoryId
   ).map((t) => t.totalMinor).filter((v) => v > 0);
   const dark = document.documentElement.dataset.theme === 'dark';
   el('calScale').textContent = spent.length

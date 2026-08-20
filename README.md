@@ -405,6 +405,13 @@ Each cell carries the **day's total as well as its shade** — the shading is wh
 makes a heavy week visible without reading thirty numbers, the figure is what
 lets you check one.
 
+**A category focus scopes the grid as well.** Focus Food and every cell reports
+what Food cost that day, the shading rescales to the biggest Food day, and days
+with no Food in them fall to 0. The cells used to keep reporting whole-day totals
+while the headline, the breakdown and the entries had all narrowed — the same
+grid answering a different question from everything around it, under a heading
+that said otherwise.
+
 The date and the amount are deliberately unalike — the date heavier and tighter,
 the amount lighter and a shade quieter. They used to share a size, a weight and a
 colour, which left two numbers in one 44px cell with nothing saying which was
@@ -428,6 +435,23 @@ floors each track at its content's minimum, and the empty leading cells'
 `aspect-ratio` fed the row height back in as a width — the first five columns
 came out at 53.8px against the rest at 43.4px, the grid overflowed its card, and
 the whole month sat a column out of true.
+
+## Settings, folded
+
+Settings opens on two things: the theme and the currency — the two anyone might
+reasonably change — and below them a single row, **Data & Sync**, that holds the
+Google Sheet, the Shortcut and the backup controls.
+
+Those three are setup, not settings: you touch them once when the app is new and
+then never again. Left open they were the *majority* of the screen — a URL field,
+a token field, two long generated links and a pair of destructive buttons — so
+the two live controls sat at the top of a wall of one-time plumbing, and *Erase
+everything* was one stray tap away at all times. Folded, they are still one tap
+from view for the day they are needed.
+
+**About stays outside the fold**, since the version number is what you go to
+Settings to read when something looks wrong, and burying the thing you check
+during a problem inside a collapsed section is exactly backwards.
 
 ## Backing up
 

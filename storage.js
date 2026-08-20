@@ -254,9 +254,14 @@ const Store = (() => {
     };
   }
 
-  function getDailyTotals(days, endDate) {
+  // categoryId narrows the totals to one category, which is what lets the
+  // calendar answer the same question as the rest of the Compare screen while a
+  // focus is on. Without it the grid kept reporting whole-day totals under a
+  // heading that said otherwise.
+  function getDailyTotals(days, endDate, categoryId) {
     const byDate = {};
     for (const e of live(load().expenses)) {
+      if (categoryId && e.category !== categoryId) continue;
       byDate[e.date] = (byDate[e.date] || 0) + (Number(e.amountMinor) || 0);
     }
     // Pure UTC calendar arithmetic so day-stepping never shifts across a

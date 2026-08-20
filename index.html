@@ -225,70 +225,88 @@
       <div class="section-head"><h2>Categories</h2></div>
       <div class="card" id="categoryManager"></div>
 
-      <div class="section-head"><h2>Sync to a Google Sheet</h2></div>
-      <div class="card">
-        <p class="hint">
-          Without this, expenses live only in this browser on this phone. Connect a Google Sheet
-          and they are stored there instead — shared across your devices, readable as a normal
-          spreadsheet, and reachable by a shortcut that never has to open the app.
-          Setup instructions are in <code>server/README.md</code> in the project.
-          The address below is <strong>not</strong> the sheet&rsquo;s own link &mdash; it is the
-          one Apps Script gives you after <em>Deploy &rarr; New deployment &rarr; Web app</em>,
-          ending in <code>/exec</code>.
-        </p>
-        <label class="field">
-          <span>Web app URL</span>
-          <input type="url" id="setSyncUrl" placeholder="https://script.google.com/…/exec" autocomplete="off" spellcheck="false">
-        </label>
-        <label class="field">
-          <span>Token</span>
-          <input type="text" id="setSyncToken" placeholder="the token you set in the script" autocomplete="off" spellcheck="false">
-        </label>
-        <label class="field">
-          <span>Shortcut token</span>
-          <input type="text" id="setSyncAddToken" placeholder="optional — add-only" autocomplete="off" spellcheck="false">
-        </label>
-        <p class="hint">
-          The shortcut token can only <em>add</em> expenses — it cannot read or change anything.
-          Set a different random string for it in the script, since a shortcut has to carry its
-          token in a URL. Leave blank to use the main token instead.
-        </p>
-        <button class="btn-secondary" id="syncTestBtn">Check connection</button>
-        <button class="btn-secondary" id="syncNowBtn">Sync now</button>
-        <p class="hint" id="syncStatus"></p>
-      </div>
+      <!-- Three sections that are all setup rather than everyday use, folded
+           behind one disclosure. They were three of the six headings on this
+           screen and between them the longest by far, which pushed Categories
+           and Appearance - the parts anyone actually returns to - below the
+           fold. Closed by default; the browser remembers nothing, which is
+           right, because the answer is almost always "closed". -->
+      <details class="fold" id="dataFold">
+        <summary>
+          <span class="fold-title">Data &amp; Sync</span>
+          <span class="fold-note">Google Sheet, Shortcut, backups</span>
+          <svg class="fold-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.1"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </summary>
+        <div class="fold-body">
+        <div class="section-head"><h2>Sync to a Google Sheet</h2></div>
+        <div class="card">
+          <p class="hint">
+            Without this, expenses live only in this browser on this phone. Connect a Google Sheet
+            and they are stored there instead — shared across your devices, readable as a normal
+            spreadsheet, and reachable by a shortcut that never has to open the app.
+            Setup instructions are in <code>server/README.md</code> in the project.
+            The address below is <strong>not</strong> the sheet&rsquo;s own link &mdash; it is the
+            one Apps Script gives you after <em>Deploy &rarr; New deployment &rarr; Web app</em>,
+            ending in <code>/exec</code>.
+          </p>
+          <label class="field">
+            <span>Web app URL</span>
+            <input type="url" id="setSyncUrl" placeholder="https://script.google.com/…/exec" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Token</span>
+            <input type="text" id="setSyncToken" placeholder="the token you set in the script" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Shortcut token</span>
+            <input type="text" id="setSyncAddToken" placeholder="optional — add-only" autocomplete="off" spellcheck="false">
+          </label>
+          <p class="hint">
+            The shortcut token can only <em>add</em> expenses — it cannot read or change anything.
+            Set a different random string for it in the script, since a shortcut has to carry its
+            token in a URL. Leave blank to use the main token instead.
+          </p>
+          <button class="btn-secondary" id="syncTestBtn">Check connection</button>
+          <button class="btn-secondary" id="syncNowBtn">Sync now</button>
+          <p class="hint" id="syncStatus"></p>
+        </div>
 
-      <div class="section-head"><h2>Quick add shortcut</h2></div>
-      <div class="card" id="shortcutCard">
-        <p class="hint" id="shortcutIntro"></p>
-        <code class="quick-url" id="quickUrl"></code>
-        <button class="btn-secondary" id="copyQuickUrl">Copy address</button>
-        <p class="hint"><strong>Build it in the Shortcuts app:</strong></p>
-        <ol class="hint steps">
-          <li><strong>Ask for Input</strong> — Number — “How much did you spend?”</li>
-          <li><strong>Choose from Menu</strong> — one item per category, named exactly as in
-            the list above (Food&nbsp;&amp;&nbsp;Drink, Groceries, …)</li>
-          <li><strong>Ask for Input</strong> — Text — “Note (optional)”</li>
-          <li><strong>Text</strong> — paste the address above, replacing
-            <code>AMOUNT</code>, <code>CATEGORY</code> and <code>NOTE</code> with those three
-            answers</li>
-          <li id="shortcutFinalStep"></li>
-        </ol>
-        <p class="hint">
-          Then in iOS&nbsp;Settings assign it to <strong>Back&nbsp;Tap</strong> or the
-          <strong>Lock&nbsp;Screen</strong>, or say “Hey Siri, <em>shortcut name</em>”.
-        </p>
-      </div>
+        <div class="section-head"><h2>Quick add shortcut</h2></div>
+        <div class="card" id="shortcutCard">
+          <p class="hint" id="shortcutIntro"></p>
+          <code class="quick-url" id="quickUrl"></code>
+          <button class="btn-secondary" id="copyQuickUrl">Copy address</button>
+          <p class="hint"><strong>Build it in the Shortcuts app:</strong></p>
+          <ol class="hint steps">
+            <li><strong>Ask for Input</strong> — Number — “How much did you spend?”</li>
+            <li><strong>Choose from Menu</strong> — one item per category, named exactly as in
+              the list above (Food&nbsp;&amp;&nbsp;Drink, Groceries, …)</li>
+            <li><strong>Ask for Input</strong> — Text — “Note (optional)”</li>
+            <li><strong>Text</strong> — paste the address above, replacing
+              <code>AMOUNT</code>, <code>CATEGORY</code> and <code>NOTE</code> with those three
+              answers</li>
+            <li id="shortcutFinalStep"></li>
+          </ol>
+          <p class="hint">
+            Then in iOS&nbsp;Settings assign it to <strong>Back&nbsp;Tap</strong> or the
+            <strong>Lock&nbsp;Screen</strong>, or say “Hey Siri, <em>shortcut name</em>”.
+          </p>
+        </div>
 
-      <div class="section-head"><h2>Your data</h2></div>
-      <div class="card">
-        <p class="hint">Everything is stored on this device only. Back up before switching phones or clearing your browser.</p>
-        <button class="btn-secondary" id="exportBtn">Download backup (JSON)</button>
-        <button class="btn-secondary" id="exportCsvBtn">Export to CSV</button>
-        <button class="btn-secondary" id="importBtn">Restore backup</button>
-        <input type="file" id="importFile" accept="application/json,.json" hidden>
-        <button class="btn-danger" id="clearBtn">Erase everything</button>
-      </div>
+        <div class="section-head"><h2>Your data</h2></div>
+        <div class="card">
+          <p class="hint">Everything is stored on this device only. Back up before switching phones or clearing your browser.</p>
+          <button class="btn-secondary" id="exportBtn">Download backup (JSON)</button>
+          <button class="btn-secondary" id="exportCsvBtn">Export to CSV</button>
+          <button class="btn-secondary" id="importBtn">Restore backup</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+          <button class="btn-danger" id="clearBtn">Erase everything</button>
+        </div>
+        </div>
+      </details>
 
       <div class="section-head"><h2>About</h2></div>
       <div class="card">
