@@ -2,7 +2,7 @@
 // two are what tell a fixed build apart from a cached one. Where a release only
 // rewrites visible copy, the copy itself is the tell, so this may hold while
 // CACHE takes a suffix instead.
-const APP_VERSION = 23;
+const APP_VERSION = 24;
 
 const state = {
   date: todayStr(),
@@ -1998,9 +1998,13 @@ async function checkSyncConnection() {
   }
   renderSyncStatus('Checking…');
   try {
-    await Sync.test(url, token);
+    const info = await Sync.test(url, token);
     await saveSyncSettings();
-    renderSyncStatus('Connected. Tap “Sync now” to send your expenses across.');
+    // Naming the sheet and its row count is what makes this a real check rather
+    // than a handshake: it proves the script reached the spreadsheet, which is
+    // the half that actually goes wrong.
+    const where = info.sheet ? ` Reached “${info.sheet}” with ${info.rows === 1 ? '1 expense' : `${info.rows || 0} expenses`} in it.` : '';
+    renderSyncStatus(`Connected.${where} Tap “Sync now” to send your expenses across.`);
   } catch (err) {
     renderSyncStatus(err.message);
   }

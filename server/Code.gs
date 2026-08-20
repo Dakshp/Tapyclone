@@ -31,6 +31,16 @@ var TOKEN = 'CHANGE-ME-TO-A-LONG-RANDOM-STRING';
 var ADD_TOKEN = 'OPTIONAL-SECOND-RANDOM-STRING-FOR-THE-SHORTCUT';
 // ---------------------------------------------------------------------------
 
+// OPTIONAL. Leave blank if you created this script from inside the sheet
+// (Extensions -> Apps Script), which is the usual route: the script is then
+// bound to that sheet and finds it on its own.
+//
+// Set it if you created the script separately, at script.google.com. A
+// standalone script has no "active spreadsheet", so it cannot find your sheet
+// without being told which one - paste the long id out of the sheet's own URL:
+//   docs.google.com/spreadsheets/d/THIS-PART-HERE/edit
+var SHEET_ID = '';
+
 var SHEET_NAME = 'Expenses';
 var HEADERS = ['uid', 'date', 'amountMinor', 'category', 'note', 'createdAt', 'updatedAt', 'deleted'];
 
@@ -39,7 +49,19 @@ function json_(obj) {
 }
 
 function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = null;
+  if (SHEET_ID) {
+    ss = SpreadsheetApp.openById(SHEET_ID);
+  } else {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  // Null here means the script is standalone and SHEET_ID was never set. Left
+  // to throw, Apps Script answers with an HTML error page, the app cannot parse
+  // it, and the reason never reaches the person who can fix it.
+  if (!ss) {
+    throw new Error('This script is not attached to a spreadsheet. Either create it from '
+      + 'inside the sheet (Extensions > Apps Script), or set SHEET_ID at the top of this file.');
+  }
   var sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
@@ -209,7 +231,26 @@ function pull_(since) {
 // HTTP entry points
 // ---------------------------------------------------------------------------
 
+// Apps Script answers an uncaught exception with an HTML error page, which the
+// app can only report as "did not return data" - true, and useless. These two
+// wrappers turn any failure into JSON carrying the actual reason.
 function doGet(e) {
+  try {
+    return handleGet_(e);
+  } catch (err) {
+    return json_({ ok: false, error: String((err && err.message) || err) });
+  }
+}
+
+function doPost(e) {
+  try {
+    return handlePost_(e);
+  } catch (err) {
+    return json_({ ok: false, error: String((err && err.message) || err) });
+  }
+}
+
+function handleGet_(e) {
   var p = (e && e.parameter) || {};
   var action = p.action || 'pull';
 
@@ -244,7 +285,17 @@ function doGet(e) {
   if (!authed_(p.token)) return json_({ ok: false, error: 'bad token' });
 
   if (action === 'ping') {
-    return json_({ ok: true, service: 'tracky', serverTime: nowIso_() });
+    // Touch the sheet. A ping that only checked the token said "connected"
+    // while every real request failed on the sheet, which is the worst kind of
+    // green light: it moves the problem to the next screen and drops the reason.
+    var sh = sheet_();
+    return json_({
+      ok: true,
+      service: 'tracky',
+      serverTime: nowIso_(),
+      sheet: sh.getName(),
+      rows: Math.max(sh.getLastRow() - 1, 0)
+    });
   }
 
   if (action === 'pull') {
@@ -262,7 +313,7 @@ function doGet(e) {
   return json_({ ok: false, error: 'unknown action' });
 }
 
-function doPost(e) {
+function handlePost_(e) {
   var body = {};
   try {
     body = JSON.parse((e && e.postData && e.postData.contents) || '{}');

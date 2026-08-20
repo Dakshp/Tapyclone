@@ -184,5 +184,29 @@ sign-in page instead of your script.
 the script — check for a stray space, and remember to re-deploy a new version
 after changing it.
 
+**Check connection passes but Sync now fails.** This one used to be genuinely
+confusing, and the script has been changed so it cannot happen quietly again.
+
+The check only proved the token was right; it never touched the spreadsheet.
+Everything *else* — push, pull, the shortcut — reads or writes the sheet on every
+call. So a script that could not find its sheet reported "Connected" and then
+failed at everything, and the app could only say "did not return data", because
+Apps Script answers an exception with an HTML error page.
+
+The usual cause is a **standalone script**: one created at `script.google.com`
+rather than from **Extensions → Apps Script** inside the sheet. A standalone
+script has no active spreadsheet to find. Two ways out:
+
+- Delete it and add the script from inside the sheet, per step 2 — or
+- set `SHEET_ID` at the top of `Code.gs` to the long id in your sheet's URL:
+  `docs.google.com/spreadsheets/d/`**`THIS-PART`**`/edit`
+
+Either way, re-deploy a **new version** afterwards (see *Re-deploying after an
+edit*) — the `/exec` URL keeps serving the old code until you do.
+
+Now: **Check connection** reads the sheet and tells you its name and how many
+expenses are in it, so a pass means the whole path works; and any failure comes
+back as JSON carrying the real reason instead of an HTML page.
+
 **Expenses are not appearing on the other phone.** Both need the same URL and
 token, and Tracky syncs when opened — reopen it, or tap **Sync now**.

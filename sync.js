@@ -107,7 +107,14 @@ const Sync = (() => {
     } catch (err) {
       throw new Error('That address did not return data. Check the URL ends in /exec and access is set to "Anyone".');
     }
-    if (!data.ok) throw new Error('The address works but the token was rejected.');
+    // Pass the server's own reason through. This used to report every failure
+    // as a rejected token, which is how a script that could not reach its sheet
+    // spent an afternoon looking like a typo in the token.
+    if (!data.ok) {
+      throw new Error(data.error === 'bad token'
+        ? 'The address works, but that token was rejected.'
+        : data.error || 'The address answered, but not with an OK.');
+    }
     return data;
   }
 
