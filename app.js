@@ -1794,8 +1794,12 @@ function afterCategoryChange(message) {
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 // The status bar behind a home-screen app is painted from this, so it has to
-// follow the theme too - otherwise a dark app sits under a pale strip.
-const THEME_COLOR = { light: '#eef0f6', dark: '#0b0b13' };
+// follow the theme too - otherwise a dark app sits under a pale strip. These are
+// --bg exactly: near-misses show up as a band of a slightly different colour
+// above the page, which is worse than no attempt at all. index.html carries the
+// same two values in a media pair, which is what iOS actually reads on launch;
+// this keeps a live toggle honest for browsers that do re-read the tag.
+const THEME_COLOR = { light: '#f2f2f7', dark: '#000000' };
 
 /**
  * Resolve the stored choice to an actual scheme and stamp it on <html>.
@@ -1810,8 +1814,33 @@ function applyTheme() {
   const choice = Store.getSettings().theme;
   const dark = choice === 'dark' || (choice !== 'light' && darkQuery.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', THEME_COLOR[dark ? 'dark' : 'light']);
+  applyStatusBarColor(choice, dark);
+}
+
+/**
+ * Keep the theme-color pair in step with the choice.
+ *
+ * The pair in index.html answers "what does the phone prefer", which is exactly
+ * right on 'system' and has to be overruled by an explicit Light or Dark. Both
+ * states are written out in full rather than toggled, so switching back and
+ * forth cannot leave one tag holding the other one's media query.
+ */
+function applyStatusBarColor(choice, dark) {
+  const light = el('tcLight');
+  const night = el('tcDark');
+  if (!light || !night) return;
+  if (choice === 'light' || choice === 'dark') {
+    const pinned = THEME_COLOR[dark ? 'dark' : 'light'];
+    for (const m of [light, night]) {
+      m.setAttribute('content', pinned);
+      m.removeAttribute('media');
+    }
+    return;
+  }
+  light.setAttribute('content', THEME_COLOR.light);
+  light.setAttribute('media', '(prefers-color-scheme: light)');
+  night.setAttribute('content', THEME_COLOR.dark);
+  night.setAttribute('media', '(prefers-color-scheme: dark)');
 }
 
 function renderThemeToggle() {

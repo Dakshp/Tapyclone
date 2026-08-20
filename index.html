@@ -5,7 +5,14 @@
 <!-- viewport-fit=cover lets the layout paint under the iPhone notch/home bar;
      the safe-area insets in style.css keep content clear of both. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#6366f1">
+<!-- iOS paints the status bar behind a home-screen app from theme-color, and it
+     reads it while parsing the document - a later setAttribute is not reliably
+     honoured in standalone mode. So the correct value has to be here at parse
+     time, which is what the media pair does for anyone on "match my phone".
+     These two must stay equal to --bg in style.css, or the strip above the page
+     is a slightly different colour from the page. -->
+<meta id="tcLight" name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta id="tcDark" name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>Tracky</title>
 
 <!-- iOS home-screen install metadata -->
@@ -32,6 +39,18 @@
   var dark = choice === 'dark'
     || (choice !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // An explicit Light or Dark has to override the media pair above, and it has
+  // to do it now: by the time app.js runs, iOS has already read the tag. Left on
+  // 'system' the pair is better than anything set here, since the phone can then
+  // change scheme with no script running at all.
+  if (choice === 'light' || choice === 'dark') {
+    var pinned = dark ? '#000000' : '#f2f2f7';
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < metas.length; i++) {
+      metas[i].setAttribute('content', pinned);
+      metas[i].removeAttribute('media');
+    }
+  }
 })();
 </script>
 </head>
@@ -320,8 +339,8 @@
             say so.</li>
           <li><strong>Your sheet, not our server.</strong> Sync writes to a Google
             Sheet in <em>your</em> account. Nothing sits in between.</li>
-          <li><strong>One tap, or one word.</strong> A small API lets a Shortcut or
-            Siri log a spend without opening the app.</li>
+          <li><strong>Add one without opening it.</strong> A Shortcut or a word to
+            Siri is enough &mdash; Tracky has a small API of its own.</li>
         </ul>
         <p class="hint">On iPhone: Share &rarr; <strong>Add to Home Screen</strong>.</p>
         <!-- Visible on purpose. Without it there is no way to tell a fixed build

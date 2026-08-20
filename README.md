@@ -483,6 +483,33 @@ Version 23 shipped **more than once**: the calendar and the fold, then this copy
 together, but where a release only rewrites visible words, the words are their own
 proof of arrival — so the version held and `CACHE` took a suffix instead.
 
+## The strip above the page
+
+On a home-screen iPhone app, the band behind the clock and the battery is painted
+from `<meta name="theme-color">`. Getting it wrong is very visible in light mode
+and invisible in dark, because a wrong value is usually near-black and dark mode
+is black anyway.
+
+Two things were wrong. The tag shipped as a fixed indigo and was corrected to the
+theme by `applyTheme()` **after** the document had loaded — but iOS reads the tag
+while parsing, so in standalone mode a later `setAttribute` is not reliably
+honoured, and the launch value is the one that sticks. And the values it set,
+`#eef0f6` / `#0b0b13`, were not `--bg`; even when they did apply, the strip was a
+near-miss of the page rather than the page.
+
+So the document now carries a **media pair** — the light colour under
+`(prefers-color-scheme: light)`, the dark one under dark — correct at parse time
+with no script involved, which is the right answer for anyone on *match my
+phone*. An explicit **Light** or **Dark** overrules the phone, so the pre-paint
+script in `index.html` pins both tags to the chosen colour there and then, before
+iOS has read either. `applyTheme()` still writes them so a live toggle is honest,
+and it writes **both states out in full** rather than toggling, since switching
+back and forth otherwise leaves one tag holding the other's media query.
+
+All four values — the two tags, `--bg` in both themes, and the manifest's
+`theme_color` — are asserted equal by the status-bar suite, because the failure
+mode here is a near-miss, and a near-miss is not something you can see by eye.
+
 ## Backing up
 
 Your data lives only on the device. Before switching phones, clearing browser
