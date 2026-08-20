@@ -176,6 +176,24 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Resting a finger on a row used to start a text selection, and dragging the
+     selection handles afterwards IS a horizontal drag - which the swipe-to-
+     reveal counted, so merely touching an entry opened its actions. Native apps
+     do not offer to select their own list labels, and turning it off removes the
+     gesture collision at the source rather than trying to tell the two apart.
+     touch-callout kills the long-press menu that came with it. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Anything genuinely worth copying keeps selection: fields the reader types in,
+   and the Shortcut address, which somebody may well want to copy by hand even
+   though there is a button for it. */
+input, textarea, select, #quickUrl, .selectable {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 button, select, input {
@@ -672,23 +690,32 @@ button {
 .cal-day[data-level="2"] { background: var(--cal-2); }
 .cal-day[data-level="3"] { background: var(--cal-3); color: var(--cal-3-ink); }
 .cal-day[data-level="future"] { background: none; color: var(--muted); opacity: .35; }
-.cal-num { font-size: 13.5px; font-weight: 600; line-height: 1.1; }
+/* The date leads and the amount follows. They used to be the same size-ish, the
+   same weight and the same colour, which left two numbers in one small cell with
+   nothing saying which was which. */
+.cal-num { font-size: 13px; font-weight: 700; line-height: 1.05; }
 /* The figure, not just the shade. Short form - "420", "1.5K" - because a cell is
    about 44px wide and a full "₹1,500.00" would have to shrink past reading. */
 .cal-sum {
-  font-size: 10.5px;
+  font-size: 11px;
   /* A five-figure day is rare but must not blow the cell open. */
-  letter-spacing: -.025em;
-  font-weight: 600;
+  letter-spacing: -.03em;
+  /* Lighter than the date, and a touch wider, so the two read as a heading and
+     its figure rather than as two numbers of equal standing. */
+  font-weight: 500;
   line-height: 1.1;
-  opacity: .82;
+  /* The separation from the date comes from size and weight, not from fading the
+     figure out - a number at 2:1 is decoration, and this one is the point. */
+  opacity: .88;
   font-variant-numeric: tabular-nums;
   max-width: 100%;
   overflow: hidden;
 }
 /* A zero is still shown - the column reads better without holes in it - but it
    is not news, so it recedes rather than competing with the days that are. */
-.cal-sum.is-zero { opacity: .32; font-weight: 500; }
+/* Quieter than a real amount, but still a figure someone can read: the ask was
+   to see a number every day, and a 0 nobody can make out is not one. */
+.cal-sum.is-zero { opacity: .55; font-weight: 500; }
 
 /* Today is its date in the accent colour, the selection is a ring around the
    cell. Two different marks, so "where I am" and "what I am looking at" never

@@ -1,6 +1,6 @@
 // Shown in Settings. Bump it and sw.js's CACHE together on every release - the
 // two are what tell a fixed build apart from a cached one.
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 
 const state = {
   date: todayStr(),
@@ -163,6 +163,11 @@ function onHorizontalSwipe(target, { onSwipe, onDrag, threshold = 45, owner = tr
   const point = (e) => (e.touches ? e.touches[0] : e);
 
   const start = (e) => {
+    // Belt and braces alongside user-select: none. If anything on the page ever
+    // does end up selected, dragging its handles is a horizontal movement, and
+    // a gesture must not be able to ride in on one.
+    const sel = window.getSelection && window.getSelection();
+    if (sel && !sel.isCollapsed) { active = false; return; }
     const p = point(e);
     startX = p.clientX;
     startY = p.clientY;

@@ -124,6 +124,13 @@ the breakdown rather than silently dropped.
 - **Swipe an expense left** to reveal **Edit** and **Delete** in place — the
   same pattern as Mail, with no intermediate menu to step through.
 
+Text selection is off across the app. Resting a finger on a row used to start a
+selection, and dragging its handles afterwards *is* a horizontal drag — so the
+swipe-to-reveal counted it and merely touching an entry opened its actions.
+Native apps do not offer to select their own list labels, so turning it off
+removes the collision at the source rather than trying to tell the two gestures
+apart. Fields the reader types in, and the Shortcut address, keep selection.
+
 Exactly **two** things own a horizontal drag: the chart/calendar strip and an
 expense row. Everything else on a screen belongs to the tab gesture. That rule
 cost a feature — the headline cards used to take a drag too, days on Today and
@@ -360,6 +367,11 @@ spending yet is not a day with nothing spent.
 Each cell carries the **day's total as well as its shade** — the shading is what
 makes a heavy week visible without reading thirty numbers, the figure is what
 lets you check one.
+
+The date and the amount are deliberately unalike — the date heavier and tighter,
+the amount lighter and a shade quieter. They used to share a size, a weight and a
+colour, which left two numbers in one 44px cell with nothing saying which was
+which.
 
 **Every day that has happened carries a figure, zeros included.** A column of
 numbers with holes in it is harder to scan than one without, and a 0 is a real
