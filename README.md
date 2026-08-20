@@ -456,14 +456,16 @@ during a problem inside a collapsed section is exactly backwards.
 About itself is the one card here that is *read* rather than operated, so it is
 written in sentences instead of rows: a line at title size, then three claims
 whose openers carry the weight, so the whole card can be taken in three glances.
-It says the three things that are actually unusual about this app — the data is
-private on the device, sync goes to a **Google Sheet in your own account** rather
-than anyone's server, and a small API means a Shortcut or Siri can log a spend
-without opening the app at all. Then the version, the update button, and the
-signature.
+It opens by saying plainly what the app is and what you do with it, then the
+three things that are actually unusual about it — the data is private on the
+device, sync goes to a **Google Sheet in your own account** rather than anyone's
+server, and a small API means a Shortcut or Siri can log a spend without opening
+the app at all. Then the version, the update button, and one quiet closing line
+carrying the name and the notice together, both at caption size: neither is
+something anyone came to Settings to read, so neither gets to be the biggest
+thing on the card.
 
-Version 23 shipped **twice**: once with the calendar and the fold, once with this
-copy. The rule is normally that `APP_VERSION` and `sw.js`'s `CACHE` move
+Version 23 shipped **more than once**: the calendar and the fold, then this copy. The rule is normally that `APP_VERSION` and `sw.js`'s `CACHE` move
 together, but where a release only rewrites visible words, the words are their own
 proof of arrival — so the version held and `CACHE` took a suffix instead.
 

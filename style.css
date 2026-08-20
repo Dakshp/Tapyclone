@@ -1337,30 +1337,12 @@ button {
 .about-list strong { color: var(--text); font-weight: 600; }
 .about-list em { font-style: normal; color: var(--text); font-weight: 600; }
 
-/* The signature closes the card, so it is centred and given air above the
-   hairline-free bottom edge. The name keeps its own spelling exactly. */
-.about-sign {
-  margin: 4px 0 0;
-  padding: 14px 16px 0;
-  border-top: 1px solid var(--separator);
-  text-align: center;
-  font-size: var(--t-caption);
-  letter-spacing: .6px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.sign-name {
-  display: block;
-  margin-top: 5px;
-  font-size: var(--t-title);
-  font-weight: 600;
-  letter-spacing: -.3px;
-  text-transform: none;
-  color: var(--primary);
-}
+/* One quiet line closes the card - the name and the notice together, at the
+   same size, since neither is something anyone came here to read. */
 .about-rights {
-  margin: 0;
-  padding: 6px 16px 16px;
+  margin: 4px 0 0;
+  padding: 13px 16px 15px;
+  border-top: 1px solid var(--separator);
   text-align: center;
   font-size: var(--t-caption);
   color: var(--muted);
